@@ -1264,6 +1264,29 @@ body {
         width: 16px;
         height: 16px;
     }
+
+    .header-controls {
+        gap: 10px !important;
+    }
+
+    .status-text {
+        display: none !important;
+    }
+
+    .api-status {
+        padding: 0 !important;
+        width: 34px;
+        height: 34px;
+        border-radius: 50% !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .status-indicator {
+        margin: 0 !important;
+    }
     
     /* Mobile-first Tabbed System: Hide inactive cards on mobile view */
     .converter-card,
