@@ -1022,9 +1022,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!button) return;
             const tabName = button.getAttribute("data-tab");
             
+            // Get index of clicked tab button to calculate sliding offset
+            const parent = button.parentNode;
+            const tabsArray = Array.from(parent.querySelectorAll(".nav-tab"));
+            const index = tabsArray.indexOf(button);
+            
             // Toggle active classes on tabs
-            document.querySelectorAll(".nav-tab").forEach(btn => btn.classList.remove("active"));
+            tabsArray.forEach(btn => btn.classList.remove("active"));
             button.classList.add("active");
+            
+            // Update sliding pill indicator position
+            const indicator = document.getElementById("nav-tab-indicator");
+            if (indicator) {
+                indicator.style.transform = `translateX(${index * 100}%)`;
+            }
             
             // Set body attribute to change visibility in CSS
             document.body.setAttribute("data-active-tab", tabName);

@@ -1288,6 +1288,17 @@ body {
         margin: 0 !important;
     }
     
+    @keyframes tabContentSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     /* Mobile-first Tabbed System: Hide inactive cards on mobile view */
     .converter-card,
     .favorites-card,
@@ -1300,16 +1311,19 @@ body {
     body[data-active-tab="converter"] .favorites-card {
         display: flex !important;
         flex-direction: column;
+        animation: tabContentSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     
     body[data-active-tab="chart"] .chart-card {
         display: flex !important;
         flex-direction: column;
+        animation: tabContentSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     
     body[data-active-tab="lookup"] .lookup-card {
         display: flex !important;
         flex-direction: column;
+        animation: tabContentSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     
     /* Interactive Card Padding Adjustments */
@@ -1450,6 +1464,21 @@ body {
         }
     }
     
+    /* Sliding pill indicator under the active tab icon */
+    .nav-indicator {
+        position: absolute;
+        top: 5px;
+        bottom: 5px;
+        left: 6px;
+        width: calc((100% - 12px) / 3);
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+        border-radius: 25px;
+        z-index: 1;
+        box-shadow: 0 6px 14px rgba(99, 102, 241, 0.25);
+        transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        pointer-events: none; /* Let touches pass through to clickable buttons */
+    }
+    
     /* Sliding Pill Capsule buttons inside the glass bar */
     .nav-tab {
         background: none;
@@ -1465,10 +1494,12 @@ body {
         cursor: pointer;
         flex-grow: 1;
         height: calc(100% - 10px);
-        margin: 5px 4px;
+        margin: 5px 0; /* Fit indicator width calculation perfectly */
         border-radius: 25px;
         outline: none;
-        transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        z-index: 2; /* Sit on top of sliding indicator */
+        transition: all 0.3s ease;
     }
     
     .nav-tab i {
@@ -1487,15 +1518,13 @@ body {
     }
     
     .nav-tab:active {
-        background: rgba(99, 102, 241, 0.05);
+        background: rgba(99, 102, 241, 0.03);
     }
     
-    /* Premium Indigo-Purple gradient glowing active state pill */
+    /* Active State styles - white text on sliding gradient indicator background */
     .nav-tab.active {
         opacity: 1;
-        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
         color: #ffffff !important;
-        box-shadow: 0 6px 14px rgba(99, 102, 241, 0.25);
     }
     
     .nav-tab.active i {
