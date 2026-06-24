@@ -362,23 +362,6 @@ async function fetchChartData(from, to, days) {
     }
 }
 
-// Fetch single historical date lookup
-async function fetchHistoricalRate(date, from, to) {
-    let url = `${CONFIG.PRIMARY_API}/${date}?base=${from}&symbols=${to}`;
-    let backupUrl = `${CONFIG.PRIMARY_API_FALLBACK}/${date}?base=${from}&symbols=${to}`;
-    
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("Historical lookup failed");
-        return await response.json();
-    } catch (err) {
-        console.warn("Primary lookup failed, attempting fallback...", err);
-        const response = await fetch(backupUrl);
-        if (!response.ok) throw new Error("Fallback lookup failed");
-        return await response.json();
-    }
-}
-
 /* ==========================================================================
    State Helpers & Conversion Calculation
    ========================================================================== */
@@ -817,45 +800,6 @@ function renderChartCanvas(labels, dataPoints) {
     });
 }
 
-/* ==========================================================================
-   Historical Date Lookup Form Controller
-   ========================================================================== */
-
-async function handleHistoricalQuery() {
-    const dateInput = document.getElementById("historical-date").value;
-    const resultBox = document.getElementById("lookup-result");
-    const queryBtn = document.getElementById("query-historical-btn");
-    
-    if (!dateInput) {
-        alert("请选择要查询的历史日期");
-        return;
-    }
-    
-    queryBtn.disabled = true;
-    queryBtn.innerHTML = `<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div> 查询中...`;
-    
-    try {
-        const data = await fetchHistoricalRate(dateInput, state.baseCurrency, state.targetCurrency);
-        
-        const rate = data.rates[state.targetCurrency];
-        const valFrom = state.amount;
-        const valTo = valFrom * rate;
-        
-        document.getElementById("lookup-result-date").textContent = dateInput;
-        document.getElementById("lookup-from-val").textContent = formatCurrencyNumber(valFrom, state.baseCurrency);
-        document.getElementById("lookup-to-val").textContent = formatCurrencyNumber(valTo, state.targetCurrency);
-        document.getElementById("lookup-to-code-label").textContent = state.targetCurrency;
-        
-        resultBox.classList.remove("hidden");
-    } catch (err) {
-        console.error("Lookup query failed", err);
-        alert("汇率回溯查询失败，历史数据可能不存在或网络连接超时");
-    } finally {
-        queryBtn.disabled = false;
-        queryBtn.innerHTML = `<i data-lucide="search"></i> 查询汇率`;
-        lucide.createIcons();
-    }
-}
 
 /* ==========================================================================
    Theme Management Layer
@@ -928,12 +872,6 @@ function saveStateToStorage() {
 
 document.addEventListener("DOMContentLoaded", async () => {
     loadStoredSettings();
-    
-    // Set max historical date picker restriction to today
-    const datePicker = document.getElementById("historical-date");
-    const todayStr = new Date().toISOString().split('T')[0];
-    datePicker.max = todayStr;
-    datePicker.value = todayStr;
     
     // Initial fetch
     await fetchExchangeRates();
@@ -1029,9 +967,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             updateTrendChart();
         });
     });
-    
-    // Historical lookup button click
-    document.getElementById("query-historical-btn").addEventListener("click", handleHistoricalQuery);
     
     // Theme switch clicks
     document.getElementById("theme-system-btn").addEventListener("click", () => setTheme("system"));

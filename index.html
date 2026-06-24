@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>GlobalRate - 实时汇率货币转换器</title>
-    <meta name="description" content="GlobalRate 是一款实时、精准的汇率货币转换工具。支持全球 150+ 种货币的实时兑换，提供历史汇率走势图表、自选汇率面板及历史汇率回溯功能。适配手机与电脑端。">
+    <meta name="description" content="GlobalRate 是一款实时、精准的汇率货币转换工具。支持全球 150+ 种货币的实时兑换，提供历史汇率走势图表及自选汇率看板。适配手机与电脑端。">
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
     <!-- iOS Web App Metadata (Safari Add to Home Screen Optimized) -->
@@ -167,7 +167,7 @@
                 </div>
             </section>
 
-            <!-- Column 2: Historical Chart and Historical Lookup -->
+            <!-- Column 2: Historical Chart -->
             <section class="grid-col grid-right">
                 <!-- Trend Chart Card -->
                 <div class="glass-card chart-card">
@@ -204,45 +204,6 @@
                         <canvas id="rate-trend-chart"></canvas>
                     </div>
                 </div>
-
-                <!-- Historical Lookup Card -->
-                <div class="glass-card lookup-card">
-                    <div class="card-header">
-                        <h2>历史汇率回溯</h2>
-                        <span class="card-subtitle">查询过去任意一天的汇率数据</span>
-                    </div>
-
-                    <div class="lookup-form">
-                        <div class="lookup-inputs">
-                            <div class="form-group date-group">
-                                <label for="historical-date">选择日期</label>
-                                <div class="input-wrapper">
-                                    <i data-lucide="calendar" class="input-icon-left"></i>
-                                    <input type="date" id="historical-date">
-                                </div>
-                            </div>
-                            <button type="button" class="primary-btn" id="query-historical-btn">
-                                <i data-lucide="search"></i> 查询汇率
-                            </button>
-                        </div>
-
-                        <div class="lookup-result-box hidden" id="lookup-result">
-                            <div class="lookup-date-title" id="lookup-result-date">2026-05-20</div>
-                            <div class="lookup-rate-row">
-                                <div class="lookup-currency">
-                                    <span class="lookup-amount" id="lookup-from-val">100.00</span>
-                                    <span class="lookup-code">USD</span>
-                                </div>
-                                <i data-lucide="arrow-right" class="arrow-icon"></i>
-                                <div class="lookup-currency">
-                                    <span class="lookup-amount highlight" id="lookup-to-val">724.50</span>
-                                    <span class="lookup-code" id="lookup-to-code-label">CNY</span>
-                                </div>
-                            </div>
-                            <div class="lookup-meta" id="lookup-result-meta">基于欧洲央行官方公布数据</div>
-                        </div>
-                    </div>
-                </div>
             </section>
         </main>
 
@@ -267,10 +228,6 @@
         <button class="nav-tab" data-tab="chart" id="tab-btn-chart">
             <i data-lucide="trending-up"></i>
             <span>趋势图表</span>
-        </button>
-        <button class="nav-tab" data-tab="lookup" id="tab-btn-lookup">
-            <i data-lucide="calendar"></i>
-            <span>历史查询</span>
         </button>
     </div>
 
