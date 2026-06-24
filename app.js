@@ -1067,6 +1067,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 state.chartInstance.options.scales.x.ticks.maxTicksLimit = window.innerWidth < 480 ? 6 : 12;
                 state.chartInstance.update();
             }
+        }, 150);
     });
 });
 
