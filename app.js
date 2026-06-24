@@ -55,8 +55,8 @@ const state = {
 
 // Config & API Endpoints
 const CONFIG = {
-    PRIMARY_API: "https://api.frankfurter.app",
-    PRIMARY_API_FALLBACK: "https://api.frankfurter.dev",
+    PRIMARY_API: "https://api.frankfurter.dev/v1",
+    PRIMARY_API_FALLBACK: "https://api.frankfurter.app",
     FALLBACK_API: "https://api.exchangerate.fun",
     CACHE_EXPIRY: 60 * 60 * 1000, // 1 hour caching
     FLAG_CDN: "https://flagcdn.com/w40"
