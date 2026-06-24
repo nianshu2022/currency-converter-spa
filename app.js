@@ -486,15 +486,15 @@ function renderFavoritesGrid() {
                         <span class="fav-name-secondary">${CURRENCY_METADATA[code] ? CURRENCY_METADATA[code].name : ''}</span>
                     </div>
                 </div>
-                <div class="fav-meta">
-                    ${changeBadge}
-                </div>
                 <button class="fav-unpin-btn" data-code="${code}" title="取消置顶">
                     <i data-lucide="trash-2"></i>
                 </button>
             </div>
             <div class="fav-value">${formatCurrencyNumber(value, code)}</div>
-            <div class="fav-label">1 ${state.baseCurrency} = ${formatCurrencyNumber(rate, code)}</div>
+            <div class="fav-footer">
+                <span class="fav-label">1 ${state.baseCurrency} = ${formatCurrencyNumber(rate, code)}</span>
+                ${changeBadge}
+            </div>
         `;
         
         // Card click handler -> set as target currency
