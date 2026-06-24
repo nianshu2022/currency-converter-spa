@@ -1335,73 +1335,102 @@ body {
         animation: tabContentSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     
-    /* Interactive Card Padding Adjustments */
+    /* Interactive Card Padding Adjustments to save vertical space */
     .glass-card {
-        padding: 18px;
-        border-radius: 18px;
+        padding: 16px;
+        border-radius: 16px;
     }
     
-    /* Larger Text & Content Values on mobile */
+    .form-group {
+        margin-bottom: 12px;
+    }
+    
+    /* Compact Text & Content Values on mobile */
     .input-wrapper input {
-        font-size: 22px;
-        padding: 14px 18px;
+        font-size: 20px;
+        padding: 12px 16px;
     }
     
     .amount-group .input-wrapper input {
-        padding-left: 45px;
-        padding-right: 45px;
+        padding-left: 42px;
+        padding-right: 42px;
     }
     
     .custom-select-trigger {
-        padding: 14px 16px;
+        padding: 11px 12px;
+    }
+    
+    .selected-currency-info {
+        gap: 8px;
     }
     
     .currency-code {
-        font-size: 17px;
+        font-size: 15px;
     }
     
     .currency-flag {
-        width: 32px;
-        height: 22px;
+        width: 24px;
+        height: 16px;
+        border-radius: 2px;
+    }
+
+    .select-chevron {
+        width: 14px;
+        height: 14px;
     }
     
     .to-display-value {
-        font-size: 34px;
+        font-size: 28px;
         font-weight: 800;
     }
     
     .to-display-code {
-        font-size: 22px;
+        font-size: 18px;
     }
     
     .result-bottom {
-        gap: 6px;
-        margin-bottom: 8px;
+        gap: 4px;
+        margin-bottom: 4px;
+    }
+
+    .conversion-result-box {
+        padding: 14px 16px;
+        margin-top: 8px;
     }
     
-    /* Layout controls */
+    /* Single-row horizontal layout for currency selectors on mobile */
     .currency-selector-row {
-        grid-template-columns: 1fr;
-        gap: 10px;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: flex-end !important;
+        gap: 6px !important;
+    }
+    
+    .currency-select-group {
+        flex: 1 !important;
+        min-width: 0 !important;
     }
     
     .swap-action-wrapper {
-        height: auto;
-        margin: 2px 0;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-shrink: 0 !important;
+        height: 44px !important; /* Aligns with trigger height */
     }
     
     .swap-btn {
-        width: 46px;
-        height: 46px;
-        transform: rotate(90deg); /* Swap arrow points up/down on mobile */
+        width: 36px !important;
+        height: 36px !important;
+        transform: none !important; /* Keep horizontal arrow direction */
     }
     
     .swap-btn:hover {
-        transform: rotate(270deg);
+        transform: scale(1.05) !important;
     }
     
     .swap-btn:active {
-        transform: scale(0.9) rotate(270deg);
+        transform: scale(0.9) !important;
     }
     
     .favorites-grid {
