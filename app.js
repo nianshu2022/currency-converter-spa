@@ -1,0 +1,903 @@
+/* ==========================================================================
+   GlobalRate Core Application Logic
+   ========================================================================== */
+
+// Constant Metadata for Currency Details (Chinese translations, symbols, and custom flag mappings)
+const CURRENCY_METADATA = {
+    "USD": { name: "美元", flag: "us", symbol: "$" },
+    "EUR": { name: "欧元", flag: "eu", symbol: "€" },
+    "GBP": { name: "英镑", flag: "gb", symbol: "£" },
+    "CNY": { name: "人民币", flag: "cn", symbol: "¥" },
+    "JPY": { name: "日元", flag: "jp", symbol: "¥" },
+    "CAD": { name: "加元", flag: "ca", symbol: "C$" },
+    "AUD": { name: "澳元", flag: "au", symbol: "A$" },
+    "HKD": { name: "港币", flag: "hk", symbol: "HK$" },
+    "SGD": { name: "新加坡元", flag: "sg", symbol: "S$" },
+    "CHF": { name: "瑞士法郎", flag: "ch", symbol: "CHF" },
+    "NZD": { name: "新西兰元", flag: "nz", symbol: "NZ$" },
+    "KRW": { name: "韩元", flag: "kr", symbol: "₩" },
+    "RUB": { name: "卢布", flag: "ru", symbol: "₽" },
+    "INR": { name: "印度卢比", flag: "in", symbol: "₹" },
+    "BRL": { name: "巴西雷亚尔", flag: "br", symbol: "R$" },
+    "ZAR": { name: "南非兰特", flag: "za", symbol: "R" },
+    "MXN": { name: "墨西哥比索", flag: "mx", symbol: "$" },
+    "DKK": { name: "丹麦克朗", flag: "dk", symbol: "kr" },
+    "SEK": { name: "瑞典克朗", flag: "se", symbol: "kr" },
+    "NOK": { name: "挪威克朗", flag: "no", symbol: "kr" },
+    "PLN": { name: "波兰兹罗提", flag: "pl", symbol: "zł" },
+    "TRY": { name: "土耳其里拉", flag: "tr", symbol: "₺" },
+    "THB": { name: "泰铢", flag: "th", symbol: "฿" },
+    "MYR": { name: "马来西亚林吉特", flag: "my", symbol: "RM" },
+    "PHP": { name: "菲律宾比索", flag: "ph", symbol: "₱" },
+    "IDR": { name: "印尼盾", flag: "id", symbol: "Rp" },
+    "HUF": { name: "匈牙利福林", flag: "hu", symbol: "Ft" },
+    "CZK": { name: "捷克克朗", flag: "cz", symbol: "Kč" },
+    "ILS": { name: "以色列新谢克尔", flag: "il", symbol: "₪" },
+    "BGN": { name: "保加利亚列弗", flag: "bg", symbol: "лв" },
+    "RON": { name: "罗马尼亚列伊", flag: "ro", symbol: "lei" },
+    "ISK": { name: "冰岛克朗", flag: "is", symbol: "kr" }
+};
+
+// Global App State
+const state = {
+    baseCurrency: "USD",
+    targetCurrency: "CNY",
+    amount: 100,
+    rates: {}, // Cache of conversion rates with USD as baseline
+    lastUpdated: null,
+    pinnedCurrencies: ["CNY", "EUR", "GBP", "JPY", "HKD", "CAD"],
+    theme: "system", // system, dark, light
+    chartInstance: null,
+    chartDays: 30,
+    activeSelectorTrigger: null, // "from", "to", or "pin"
+    availableCurrenciesList: [] // Populated dynamically from API
+};
+
+// Config & API Endpoints
+const CONFIG = {
+    PRIMARY_API: "https://api.frankfurter.app",
+    PRIMARY_API_FALLBACK: "https://api.frankfurter.dev",
+    FALLBACK_API: "https://api.exchangerate.fun",
+    CACHE_EXPIRY: 60 * 60 * 1000, // 1 hour caching
+    FLAG_CDN: "https://flagcdn.com/w40"
+};
+
+// Helper: Get Flag image URL by currency code
+function getFlagUrl(currencyCode) {
+    const code = currencyCode.toUpperCase();
+    if (CURRENCY_METADATA[code] && CURRENCY_METADATA[code].flag) {
+        return `${CONFIG.FLAG_CDN}/${CURRENCY_METADATA[code].flag}.png`;
+    }
+    // Fallback heuristic: take first two characters as flag code
+    const countryCode = code.substring(0, 2).toLowerCase();
+    return `${CONFIG.FLAG_CDN}/${countryCode}.png`;
+}
+
+// Helper: Get currency localized/english name
+function getCurrencyName(currencyCode) {
+    const code = currencyCode.toUpperCase();
+    if (CURRENCY_METADATA[code]) {
+        return `${CURRENCY_METADATA[code].name} (${code})`;
+    }
+    return code;
+}
+
+// Helper: Get currency symbol
+function getCurrencySymbol(currencyCode) {
+    const code = currencyCode.toUpperCase();
+    if (CURRENCY_METADATA[code] && CURRENCY_METADATA[code].symbol) {
+        return CURRENCY_METADATA[code].symbol;
+    }
+    return "";
+}
+
+// Formatter for currency display numbers
+function formatCurrencyNumber(value, code) {
+    // High precision for small rates, normal precision for others
+    const absVal = Math.abs(value);
+    let digits = 2;
+    if (absVal > 0 && absVal < 0.01) {
+        digits = 6;
+    } else if (absVal > 0 && absVal < 1) {
+        digits = 4;
+    }
+    
+    try {
+        return new Intl.NumberFormat('zh-CN', {
+            minimumFractionDigits: digits,
+            maximumFractionDigits: digits
+        }).format(value);
+    } catch(e) {
+        return value.toFixed(digits);
+    }
+}
+
+/* ==========================================================================
+   API Service & Data Cache Layer
+   ========================================================================== */
+
+// Main Rates API Fetcher (dual API failover + caching)
+async function fetchExchangeRates(forceRefresh = false) {
+    const cachedData = localStorage.getItem("globalrate_cache");
+    
+    if (!forceRefresh && cachedData) {
+        const parsed = JSON.parse(cachedData);
+        const age = Date.now() - parsed.timestamp;
+        if (age < CONFIG.CACHE_EXPIRY) {
+            state.rates = parsed.rates;
+            state.lastUpdated = new Date(parsed.timestamp);
+            state.availableCurrenciesList = Object.keys(parsed.rates);
+            updateApiStatus("live", `缓存更新于 ${formatTime(state.lastUpdated)}`);
+            return;
+        }
+    }
+
+    updateApiStatus("syncing", "正在同步实时汇率...");
+
+    // Try Primary API
+    try {
+        const response = await fetch(`${CONFIG.PRIMARY_API}/latest?base=USD`);
+        if (!response.ok) throw new Error("Primary API failed");
+        const data = await response.json();
+        
+        // Merge USD itself into rates as 1.0
+        data.rates["USD"] = 1.0;
+        
+        saveRatesToCache(data.rates);
+        updateApiStatus("live", "汇率实时同步成功 (Frankfurter)");
+        return;
+    } catch (err) {
+        console.warn("Primary API failed, trying primary fallback...", err);
+    }
+
+    // Try Primary Backup (Dev domain)
+    try {
+        const response = await fetch(`${CONFIG.PRIMARY_API_FALLBACK}/latest?base=USD`);
+        if (!response.ok) throw new Error("Primary Fallback API failed");
+        const data = await response.json();
+        data.rates["USD"] = 1.0;
+        saveRatesToCache(data.rates);
+        updateApiStatus("live", "汇率实时同步成功 (Frankfurter Fallback)");
+        return;
+    } catch (err) {
+        console.warn("Primary Fallback failed, trying Fallback API...", err);
+    }
+
+    // Try Fallback API (exchangerate.fun)
+    try {
+        const response = await fetch(`${CONFIG.FALLBACK_API}/latest?base=USD`);
+        if (!response.ok) throw new Error("Fallback API failed");
+        const data = await response.json();
+        
+        // Ensure rates exist
+        if (data.rates) {
+            data.rates["USD"] = 1.0;
+            saveRatesToCache(data.rates);
+            updateApiStatus("live", "汇率同步成功 (exchangerate.fun)");
+            return;
+        }
+    } catch (err) {
+        console.error("All exchange rate APIs failed.", err);
+        updateApiStatus("error", "汇率同步失败，请检查网络或点击刷新");
+        
+        // Fallback to expired cache if available
+        if (cachedData) {
+            const parsed = JSON.parse(cachedData);
+            state.rates = parsed.rates;
+            state.lastUpdated = new Date(parsed.timestamp);
+            state.availableCurrenciesList = Object.keys(parsed.rates);
+            console.log("Using expired cache as emergency fallback.");
+        }
+    }
+}
+
+function saveRatesToCache(rates) {
+    state.rates = rates;
+    state.lastUpdated = new Date();
+    state.availableCurrenciesList = Object.keys(rates);
+    
+    localStorage.setItem("globalrate_cache", JSON.stringify({
+        timestamp: state.lastUpdated.getTime(),
+        rates: rates
+    }));
+}
+
+// Fetch Time Series data for Chart.js
+async function fetchChartData(from, to, days) {
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDateObj = new Date();
+    startDateObj.setDate(startDateObj.getDate() - days);
+    const startDate = startDateObj.toISOString().split('T')[0];
+    
+    // API endpoint: /v1/2026-05-24..2026-06-23?base=USD&symbols=CNY
+    // We fetch with 'from' as base and 'to' as symbol
+    let url = `${CONFIG.PRIMARY_API}/${startDate}..${endDate}?base=${from}&symbols=${to}`;
+    let backupUrl = `${CONFIG.PRIMARY_API_FALLBACK}/${startDate}..${endDate}?base=${from}&symbols=${to}`;
+    
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Failed to load historical chart data");
+        return await response.json();
+    } catch (err) {
+        console.warn("Primary historical data fetch failed, attempting fallback...", err);
+        try {
+            const response = await fetch(backupUrl);
+            if (!response.ok) throw new Error("Fallback historical data fetch failed");
+            return await response.json();
+        } catch (backupErr) {
+            console.error("Could not fetch historical data.", backupErr);
+            throw backupErr;
+        }
+    }
+}
+
+// Fetch single historical date lookup
+async function fetchHistoricalRate(date, from, to) {
+    let url = `${CONFIG.PRIMARY_API}/${date}?base=${from}&symbols=${to}`;
+    let backupUrl = `${CONFIG.PRIMARY_API_FALLBACK}/${date}?base=${from}&symbols=${to}`;
+    
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Historical lookup failed");
+        return await response.json();
+    } catch (err) {
+        console.warn("Primary lookup failed, attempting fallback...", err);
+        const response = await fetch(backupUrl);
+        if (!response.ok) throw new Error("Fallback lookup failed");
+        return await response.json();
+    }
+}
+
+/* ==========================================================================
+   State Helpers & Conversion Calculation
+   ========================================================================== */
+
+// Core calculation: Converts amount from one currency to another using the cached USD-base rates
+function calculateConversion(amount, from, to) {
+    if (!state.rates[from] || !state.rates[to]) return 0;
+    
+    // R_USD(to) / R_USD(from) = conversion rate from 'from' to 'to'
+    const rateToUSDFrom = state.rates[from];
+    const rateToUSDTo = state.rates[to];
+    
+    // 1 USD = rateToUSDFrom FROM
+    // 1 USD = rateToUSDTo TO
+    // Hence, 1 FROM = rateToUSDTo / rateToUSDFrom TO
+    const rate = rateToUSDTo / rateToUSDFrom;
+    return amount * rate;
+}
+
+// Get the conversion rate value itself
+function getExchangeRate(from, to) {
+    if (!state.rates[from] || !state.rates[to]) return 0;
+    return state.rates[to] / state.rates[from];
+}
+
+/* ==========================================================================
+   UI Rendering & Event Handlers
+   ========================================================================== */
+
+// Format time utility helper
+function formatTime(date) {
+    if (!date) return "";
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+// Update API connection status elements
+function updateApiStatus(statusClass, message) {
+    const indicator = document.querySelector("#api-status .status-indicator");
+    const statusText = document.querySelector("#api-status .status-text");
+    
+    indicator.className = `status-indicator ${statusClass}`;
+    statusText.textContent = message;
+}
+
+// Update Main conversion UI display cards
+function updateConversionResults() {
+    const fromVal = parseFloat(document.getElementById("amount-input").value) || 0;
+    state.amount = fromVal;
+    
+    const convertedVal = calculateConversion(fromVal, state.baseCurrency, state.targetCurrency);
+    const rateFrom = getExchangeRate(state.baseCurrency, state.targetCurrency);
+    const rateTo = getExchangeRate(state.targetCurrency, state.baseCurrency);
+    
+    // Set currency prefix symbol
+    document.getElementById("amount-prefix").textContent = getCurrencySymbol(state.baseCurrency);
+    
+    // Result displays
+    document.getElementById("result-from-display").textContent = `${formatCurrencyNumber(fromVal, state.baseCurrency)} ${state.baseCurrency} =`;
+    document.getElementById("result-to-display").textContent = formatCurrencyNumber(convertedVal, state.targetCurrency);
+    document.getElementById("result-to-code").textContent = state.targetCurrency;
+    
+    // Formulas
+    document.getElementById("rate-formula-from").textContent = `1 ${state.baseCurrency} = ${formatCurrencyNumber(rateFrom, state.targetCurrency)} ${state.targetCurrency}`;
+    document.getElementById("rate-formula-to").textContent = `1 ${state.targetCurrency} = ${formatCurrencyNumber(rateTo, state.baseCurrency)} ${state.baseCurrency}`;
+    
+    // Sync Trigger Buttons
+    document.getElementById("from-code").textContent = state.baseCurrency;
+    document.getElementById("from-flag").src = getFlagUrl(state.baseCurrency);
+    document.getElementById("from-flag").alt = `${state.baseCurrency} Flag`;
+    
+    document.getElementById("to-code").textContent = state.targetCurrency;
+    document.getElementById("to-flag").src = getFlagUrl(state.targetCurrency);
+    document.getElementById("to-flag").alt = `${state.targetCurrency} Flag`;
+    
+    // Update Pinned favorites grid conversion numbers
+    renderFavoritesGrid();
+}
+
+// Render the Favorites Grid card list
+function renderFavoritesGrid() {
+    const container = document.getElementById("favorites-container");
+    container.innerHTML = "";
+    
+    if (state.pinnedCurrencies.length === 0) {
+        container.innerHTML = `
+            <div class="favorites-empty-state" style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--text-secondary); font-size: 13px;">
+                <p>暂无常用汇率卡片</p>
+                <p style="font-size: 11px; margin-top: 4px;">点击上方“添加货币”进行添加</p>
+            </div>
+        `;
+        return;
+    }
+    
+    state.pinnedCurrencies.forEach(code => {
+        // Skip display if same as base
+        if (code === state.baseCurrency) return;
+        
+        const value = calculateConversion(state.amount, state.baseCurrency, code);
+        const rate = getExchangeRate(state.baseCurrency, code);
+        
+        const card = document.createElement("div");
+        card.className = "fav-card";
+        card.setAttribute("data-code", code);
+        
+        card.innerHTML = `
+            <div class="fav-card-header">
+                <div class="fav-flag-code">
+                    <img src="${getFlagUrl(code)}" alt="${code} Flag" class="fav-flag">
+                    <span class="fav-code">${code}</span>
+                </div>
+                <button class="fav-unpin-btn" data-code="${code}" title="取消置顶">
+                    <i data-lucide="trash-2"></i>
+                </button>
+            </div>
+            <div class="fav-value">${formatCurrencyNumber(value, code)}</div>
+            <div class="fav-label">1 ${state.baseCurrency} = ${formatCurrencyNumber(rate, code)}</div>
+        `;
+        
+        // Card click handler -> set as target currency
+        card.addEventListener("click", (e) => {
+            // If they clicked the delete icon, don't trigger currency swap
+            if (e.target.closest(".fav-unpin-btn")) return;
+            
+            state.targetCurrency = code;
+            updateConversionResults();
+            updateTrendChart();
+        });
+        
+        // Unpin button click handler
+        card.querySelector(".fav-unpin-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            unpinCurrency(code);
+        });
+        
+        container.appendChild(card);
+    });
+    
+    lucide.createIcons();
+}
+
+// Add/Pin currency to favorites
+function pinCurrency(code) {
+    if (!state.pinnedCurrencies.includes(code)) {
+        state.pinnedCurrencies.push(code);
+        localStorage.setItem("globalrate_pinned", JSON.stringify(state.pinnedCurrencies));
+        renderFavoritesGrid();
+    }
+}
+
+// Remove/Unpin currency from favorites
+function unpinCurrency(code) {
+    state.pinnedCurrencies = state.pinnedCurrencies.filter(c => c !== code);
+    localStorage.setItem("globalrate_pinned", JSON.stringify(state.pinnedCurrencies));
+    renderFavoritesGrid();
+}
+
+/* ==========================================================================
+   Custom Searchable Currency Selector Modal
+   ========================================================================== */
+
+function openCurrencyModal(triggerType) {
+    state.activeSelectorTrigger = triggerType;
+    const modal = document.getElementById("currency-modal");
+    const modalTitle = document.getElementById("modal-title");
+    const searchInput = document.getElementById("currency-search-input");
+    
+    // Set title descriptive text
+    if (triggerType === "from") {
+        modalTitle.textContent = "选择源货币 (FROM)";
+    } else if (triggerType === "to") {
+        modalTitle.textContent = "选择目标货币 (TO)";
+    } else if (triggerType === "pin") {
+        modalTitle.textContent = "添加常用货币看板";
+    }
+    
+    searchInput.value = "";
+    document.getElementById("clear-search-btn").classList.add("hidden");
+    
+    renderModalCurrencyList();
+    
+    modal.classList.remove("hidden");
+    // Animation tick
+    setTimeout(() => {
+        searchInput.focus();
+    }, 100);
+}
+
+function closeCurrencyModal() {
+    const modal = document.getElementById("currency-modal");
+    modal.classList.add("hidden");
+}
+
+function renderModalCurrencyList(searchQuery = "") {
+    const container = document.getElementById("modal-currency-list");
+    container.innerHTML = "";
+    
+    const query = searchQuery.trim().toLowerCase();
+    
+    // Sort keys alphabetically
+    const sortedCodes = [...state.availableCurrenciesList].sort();
+    
+    let matchCount = 0;
+    
+    sortedCodes.forEach(code => {
+        const metadata = CURRENCY_METADATA[code] || { name: "", flag: "" };
+        const chName = metadata.name || "";
+        const enName = code;
+        
+        // Filter logic: matches currency code or localized chinese name
+        const matchesQuery = code.toLowerCase().includes(query) || 
+                             chName.toLowerCase().includes(query);
+                             
+        if (!matchesQuery) return;
+        
+        matchCount++;
+        
+        const isActive = (state.activeSelectorTrigger === "from" && state.baseCurrency === code) || 
+                         (state.activeSelectorTrigger === "to" && state.targetCurrency === code);
+                         
+        const item = document.createElement("div");
+        item.className = `currency-item ${isActive ? 'active' : ''}`;
+        
+        item.innerHTML = `
+            <div class="currency-item-left">
+                <img src="${getFlagUrl(code)}" alt="${code} Flag" class="currency-item-flag">
+                <div class="currency-item-codes">
+                    <span class="currency-item-code">${code}</span>
+                    <span class="currency-item-name">${getCurrencyName(code)}</span>
+                </div>
+            </div>
+            <i data-lucide="check" class="currency-item-active-icon"></i>
+        `;
+        
+        item.addEventListener("click", () => {
+            selectCurrencyFromModal(code);
+        });
+        
+        container.appendChild(item);
+    });
+    
+    if (matchCount === 0) {
+        container.innerHTML = `
+            <div class="no-results" style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+                <i data-lucide="info" style="margin: 0 auto 10px; width: 32px; height: 32px; display: block;"></i>
+                <p>未找到符合条件的货币 "${searchQuery}"</p>
+            </div>
+        `;
+    }
+    
+    lucide.createIcons();
+}
+
+function selectCurrencyFromModal(code) {
+    if (state.activeSelectorTrigger === "from") {
+        if (state.targetCurrency === code) {
+            // Swap if they match
+            state.targetCurrency = state.baseCurrency;
+        }
+        state.baseCurrency = code;
+        updateConversionResults();
+        updateTrendChart();
+    } else if (state.activeSelectorTrigger === "to") {
+        if (state.baseCurrency === code) {
+            // Swap if they match
+            state.baseCurrency = state.targetCurrency;
+        }
+        state.targetCurrency = code;
+        updateConversionResults();
+        updateTrendChart();
+    } else if (state.activeSelectorTrigger === "pin") {
+        pinCurrency(code);
+    }
+    
+    closeCurrencyModal();
+}
+
+/* ==========================================================================
+   Chart.js Historical Graph Controller
+   ========================================================================== */
+
+async function updateTrendChart() {
+    const loadingOverlay = document.getElementById("chart-loading");
+    const subtitle = document.getElementById("chart-subtitle");
+    
+    subtitle.textContent = `${state.baseCurrency} / ${state.targetCurrency} 汇率趋势走势`;
+    
+    if (state.baseCurrency === state.targetCurrency) {
+        if (state.chartInstance) {
+            state.chartInstance.destroy();
+            state.chartInstance = null;
+        }
+        document.getElementById("rate-trend-chart").getContext('2d').clearRect(0,0,100,100);
+        return;
+    }
+    
+    loadingOverlay.classList.add("active");
+    
+    try {
+        const data = await fetchChartData(state.baseCurrency, state.targetCurrency, state.chartDays);
+        
+        const labels = Object.keys(data.rates);
+        const dataPoints = labels.map(date => data.rates[date][state.targetCurrency]);
+        
+        renderChartCanvas(labels, dataPoints);
+    } catch(err) {
+        console.error("Failed to render trend chart", err);
+        // Show error display on chart area
+        const ctx = document.getElementById("rate-trend-chart").getContext('2d');
+        if (state.chartInstance) {
+            state.chartInstance.destroy();
+            state.chartInstance = null;
+        }
+    } finally {
+        loadingOverlay.classList.remove("active");
+    }
+}
+
+function renderChartCanvas(labels, dataPoints) {
+    const ctx = document.getElementById("rate-trend-chart").getContext('2d');
+    
+    // Clear old chart
+    if (state.chartInstance) {
+        state.chartInstance.destroy();
+    }
+    
+    const isDark = document.body.classList.contains("theme-dark") || 
+                   (document.body.classList.contains("theme-system") && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                   
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)';
+    const textColor = isDark ? '#94a3b8' : '#64748b';
+    
+    // Gradient accent background under the line
+    const gradient = ctx.createLinearGradient(0, 0, 0, 250);
+    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.25)');
+    gradient.addColorStop(1, 'rgba(168, 85, 247, 0.0)');
+    
+    state.chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels.map(date => {
+                // Shorten labels on smaller viewports
+                const parts = date.split('-');
+                return `${parts[1]}-${parts[2]}`;
+            }),
+            datasets: [{
+                label: `汇率 (${state.baseCurrency} -> ${state.targetCurrency})`,
+                data: dataPoints,
+                borderColor: '#6366f1',
+                borderWidth: 3,
+                pointBackgroundColor: '#a855f7',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 1.5,
+                pointRadius: dataPoints.length > 90 ? 0 : 3,
+                pointHoverRadius: 6,
+                fill: true,
+                backgroundColor: gradient,
+                tension: 0.15
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false // We already have a clean subtitle title
+                },
+                tooltip: {
+                    backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                    titleColor: isDark ? '#f3f4f6' : '#1f2937',
+                    bodyColor: isDark ? '#9ca3af' : '#4b5563',
+                    borderColor: 'rgba(99, 102, 241, 0.2)',
+                    borderWidth: 1,
+                    padding: 10,
+                    cornerRadius: 8,
+                    displayColors: false,
+                    callbacks: {
+                        title: function(context) {
+                            // Find actual original date label
+                            return labels[context[0].dataIndex];
+                        },
+                        label: function(context) {
+                            return `1 ${state.baseCurrency} = ${formatCurrencyNumber(context.parsed.y, state.targetCurrency)} ${state.targetCurrency}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: gridColor,
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: textColor,
+                        font: { size: 10, family: 'Outfit' },
+                        maxTicksLimit: window.innerWidth < 480 ? 6 : 12
+                    }
+                },
+                y: {
+                    grid: {
+                        color: gridColor,
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: textColor,
+                        font: { size: 10, family: 'Outfit' },
+                        callback: function(value) {
+                            return value.toFixed(3);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/* ==========================================================================
+   Historical Date Lookup Form Controller
+   ========================================================================== */
+
+async function handleHistoricalQuery() {
+    const dateInput = document.getElementById("historical-date").value;
+    const resultBox = document.getElementById("lookup-result");
+    const queryBtn = document.getElementById("query-historical-btn");
+    
+    if (!dateInput) {
+        alert("请选择要查询的历史日期");
+        return;
+    }
+    
+    queryBtn.disabled = true;
+    queryBtn.innerHTML = `<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div> 查询中...`;
+    
+    try {
+        const data = await fetchHistoricalRate(dateInput, state.baseCurrency, state.targetCurrency);
+        
+        const rate = data.rates[state.targetCurrency];
+        const valFrom = state.amount;
+        const valTo = valFrom * rate;
+        
+        document.getElementById("lookup-result-date").textContent = dateInput;
+        document.getElementById("lookup-from-val").textContent = formatCurrencyNumber(valFrom, state.baseCurrency);
+        document.getElementById("lookup-to-val").textContent = formatCurrencyNumber(valTo, state.targetCurrency);
+        document.getElementById("lookup-to-code-label").textContent = state.targetCurrency;
+        
+        resultBox.classList.remove("hidden");
+    } catch (err) {
+        console.error("Lookup query failed", err);
+        alert("汇率回溯查询失败，历史数据可能不存在或网络连接超时");
+    } finally {
+        queryBtn.disabled = false;
+        queryBtn.innerHTML = `<i data-lucide="search"></i> 查询汇率`;
+        lucide.createIcons();
+    }
+}
+
+/* ==========================================================================
+   Theme Management Layer
+   ========================================================================== */
+
+function setTheme(themeMode) {
+    state.theme = themeMode;
+    localStorage.setItem("globalrate_theme", themeMode);
+    
+    document.body.className = "";
+    
+    if (themeMode === "system") {
+        document.body.classList.add("theme-system");
+    } else if (themeMode === "dark") {
+        document.body.classList.add("theme-dark");
+    } else {
+        document.body.classList.add("theme-light");
+    }
+    
+    // Toggle active classes on buttons
+    document.querySelectorAll(".theme-btn").forEach(btn => {
+        if (btn.getAttribute("data-theme") === themeMode) {
+            btn.classList.add("active");
+        } else {
+            btn.classList.remove("active");
+        }
+    });
+    
+    // Re-draw chart to adapt color system changes (text colors, grid colors)
+    if (state.chartInstance) {
+        updateTrendChart();
+    }
+}
+
+// Detect and load initial configurations
+function loadStoredSettings() {
+    // Theme loading
+    const storedTheme = localStorage.getItem("globalrate_theme");
+    if (storedTheme) {
+        setTheme(storedTheme);
+    } else {
+        setTheme("system");
+    }
+    
+    // Favorites loading
+    const storedFavorites = localStorage.getItem("globalrate_pinned");
+    if (storedFavorites) {
+        state.pinnedCurrencies = JSON.parse(storedFavorites);
+    }
+    
+    // Base currencies selection state loading
+    const storedBase = localStorage.getItem("globalrate_base_currency");
+    const storedTarget = localStorage.getItem("globalrate_target_currency");
+    if (storedBase) state.baseCurrency = storedBase;
+    if (storedTarget) state.targetCurrency = storedTarget;
+}
+
+function saveStateToStorage() {
+    localStorage.setItem("globalrate_base_currency", state.baseCurrency);
+    localStorage.setItem("globalrate_target_currency", state.targetCurrency);
+}
+
+/* ==========================================================================
+   Lifecycle & Event Binding Registration
+   ========================================================================== */
+
+document.addEventListener("DOMContentLoaded", async () => {
+    loadStoredSettings();
+    
+    // Set max historical date picker restriction to today
+    const datePicker = document.getElementById("historical-date");
+    const todayStr = new Date().toISOString().split('T')[0];
+    datePicker.max = todayStr;
+    datePicker.value = todayStr;
+    
+    // Initial fetch
+    await fetchExchangeRates();
+    updateConversionResults();
+    updateTrendChart();
+    
+    // Amount Change Event
+    const amountInput = document.getElementById("amount-input");
+    amountInput.addEventListener("input", () => {
+        updateConversionResults();
+    });
+    
+    // Clear amount button
+    document.getElementById("clear-amount-btn").addEventListener("click", () => {
+        amountInput.value = "";
+        amountInput.focus();
+        updateConversionResults();
+    });
+    
+    // Swap currency buttons action
+    document.getElementById("swap-currencies-btn").addEventListener("click", () => {
+        const temp = state.baseCurrency;
+        state.baseCurrency = state.targetCurrency;
+        state.targetCurrency = temp;
+        
+        saveStateToStorage();
+        updateConversionResults();
+        updateTrendChart();
+    });
+    
+    // Selector trigger clicks
+    document.getElementById("from-currency-trigger").addEventListener("click", () => {
+        openCurrencyModal("from");
+    });
+    
+    document.getElementById("to-currency-trigger").addEventListener("click", () => {
+        openCurrencyModal("to");
+    });
+    
+    document.getElementById("manage-favorites-btn").addEventListener("click", () => {
+        openCurrencyModal("pin");
+    });
+    
+    // Modal controls close clicks
+    document.getElementById("close-modal-btn").addEventListener("click", closeCurrencyModal);
+    
+    document.getElementById("currency-modal").addEventListener("click", (e) => {
+        if (e.target.id === "currency-modal") {
+            closeCurrencyModal();
+        }
+    });
+    
+    // Modal search implementation
+    const searchInput = document.getElementById("currency-search-input");
+    const clearSearchBtn = document.getElementById("clear-search-btn");
+    
+    searchInput.addEventListener("input", (e) => {
+        const query = e.target.value;
+        if (query) {
+            clearSearchBtn.classList.remove("hidden");
+        } else {
+            clearSearchBtn.classList.add("hidden");
+        }
+        renderModalCurrencyList(query);
+    });
+    
+    clearSearchBtn.addEventListener("click", () => {
+        searchInput.value = "";
+        clearSearchBtn.classList.add("hidden");
+        renderModalCurrencyList("");
+        searchInput.focus();
+    });
+    
+    // Force refresh click on API Status/Logo
+    document.getElementById("api-status").addEventListener("click", async () => {
+        await fetchExchangeRates(true);
+        updateConversionResults();
+        updateTrendChart();
+    });
+    
+    document.querySelector(".brand").addEventListener("click", async () => {
+        await fetchExchangeRates(true);
+        updateConversionResults();
+        updateTrendChart();
+    });
+    
+    // Timeframe selector clicks
+    document.querySelectorAll(".time-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            document.querySelectorAll(".time-btn").forEach(b => b.classList.remove("active"));
+            e.target.classList.add("active");
+            state.chartDays = parseInt(e.target.getAttribute("data-days"));
+            updateTrendChart();
+        });
+    });
+    
+    // Historical lookup button click
+    document.getElementById("query-historical-btn").addEventListener("click", handleHistoricalQuery);
+    
+    // Theme switch clicks
+    document.getElementById("theme-system-btn").addEventListener("click", () => setTheme("system"));
+    document.getElementById("theme-dark-btn").addEventListener("click", () => setTheme("dark"));
+    document.getElementById("theme-light-btn").addEventListener("click", () => setTheme("light"));
+    
+    // Handle system theme updates dynamically
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (state.theme === "system") {
+            setTheme("system");
+        }
+    });
+    
+    // Handle responsive viewport size alterations for chart scaling
+    let resizeTimer;
+    window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            if (state.chartInstance) {
+                // Adjust chart ticks quantity according to window size
+                state.chartInstance.options.scales.x.ticks.maxTicksLimit = window.innerWidth < 480 ? 6 : 12;
+                state.chartInstance.update();
+            }
+        }, 150);
+    });
+});

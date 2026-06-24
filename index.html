@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GlobalRate - 实时汇率货币转换器</title>
+    <meta name="description" content="GlobalRate 是一款实时、精准的汇率货币转换工具。支持全球 150+ 种货币的实时兑换，提供历史汇率走势图表、自选汇率面板及历史汇率回溯功能。适配手机与电脑端。">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-system">
+    <div class="app-background">
+        <div class="glow-orb orb-1"></div>
+        <div class="glow-orb orb-2"></div>
+    </div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="logo-icon">
+                    <i data-lucide="refresh-cw" class="icon-spin-hover"></i>
+                </div>
+                <h1>Global<span>Rate</span></h1>
+            </div>
+            
+            <div class="header-controls">
+                <div class="api-status" id="api-status" title="数据更新状态">
+                    <span class="status-indicator live"></span>
+                    <span class="status-text">正在连接实时数据...</span>
+                </div>
+                
+                <div class="theme-switch-container">
+                    <button class="theme-btn active" data-theme="system" id="theme-system-btn" title="跟随系统">
+                        <i data-lucide="monitor"></i>
+                    </button>
+                    <button class="theme-btn" data-theme="dark" id="theme-dark-btn" title="深色模式">
+                        <i data-lucide="moon"></i>
+                    </button>
+                    <button class="theme-btn" data-theme="light" id="theme-light-btn" title="浅色模式">
+                        <i data-lucide="sun"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Layout Grid -->
+        <main class="app-grid">
+            
+            <!-- Column 1: Converter and Favorites -->
+            <section class="grid-col grid-left">
+                <!-- Converter Card -->
+                <div class="glass-card converter-card" id="converter-section">
+                    <div class="card-header">
+                        <h2>汇率转换</h2>
+                        <span class="card-subtitle">实时汇率转换与精准计算</span>
+                    </div>
+
+                    <div class="converter-form">
+                        <!-- Amount Input -->
+                        <div class="form-group amount-group">
+                            <label for="amount-input">兑换金额</label>
+                            <div class="input-wrapper">
+                                <span class="currency-symbol-prefix" id="amount-prefix">$</span>
+                                <input type="number" id="amount-input" value="100" placeholder="请输入金额" min="0" step="any" autocomplete="off">
+                                <button class="clear-btn" id="clear-amount-btn" title="清除金额">
+                                    <i data-lucide="x"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Currency Selector Row -->
+                        <div class="currency-selector-row">
+                            <!-- Base Currency -->
+                            <div class="form-group currency-select-group">
+                                <label>源货币</label>
+                                <button type="button" class="custom-select-trigger" id="from-currency-trigger">
+                                    <div class="selected-currency-info">
+                                        <img src="https://flagcdn.com/w40/us.png" alt="USD Flag" class="currency-flag" id="from-flag">
+                                        <span class="currency-code" id="from-code">USD</span>
+                                    </div>
+                                    <i data-lucide="chevron-down" class="select-chevron"></i>
+                                </button>
+                            </div>
+
+                            <!-- Swap Button -->
+                            <div class="swap-action-wrapper">
+                                <button type="button" class="swap-btn" id="swap-currencies-btn" title="互换货币">
+                                    <i data-lucide="arrow-left-right"></i>
+                                </button>
+                            </div>
+
+                            <!-- Target Currency -->
+                            <div class="form-group currency-select-group">
+                                <label>目标货币</label>
+                                <button type="button" class="custom-select-trigger" id="to-currency-trigger">
+                                    <div class="selected-currency-info">
+                                        <img src="https://flagcdn.com/w40/cn.png" alt="CNY Flag" class="currency-flag" id="to-flag">
+                                        <span class="currency-code" id="to-code">CNY</span>
+                                    </div>
+                                    <i data-lucide="chevron-down" class="select-chevron"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Result Display -->
+                        <div class="conversion-result-box">
+                            <div class="result-top">
+                                <span class="from-display" id="result-from-display">100.00 USD =</span>
+                            </div>
+                            <div class="result-bottom">
+                                <span class="to-display-value" id="result-to-display">725.68</span>
+                                <span class="to-display-code" id="result-to-code">CNY</span>
+                            </div>
+                            <div class="rate-info-line">
+                                <span class="exchange-rate-text" id="rate-formula-from">1 USD = 7.2568 CNY</span>
+                                <span class="exchange-rate-text-reverse" id="rate-formula-to">1 CNY = 0.1378 USD</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Favorites / Watchlist Card -->
+                <div class="glass-card favorites-card">
+                    <div class="card-header">
+                        <div class="header-title-row">
+                            <h2>常用汇率看板</h2>
+                            <button class="add-favorite-btn" id="manage-favorites-btn" title="管理看板">
+                                <i data-lucide="plus"></i> 添加货币
+                            </button>
+                        </div>
+                        <span class="card-subtitle">常用货币快速兑换看板</span>
+                    </div>
+
+                    <div class="favorites-grid" id="favorites-container">
+                        <!-- Dynamic favorite rate cards will go here -->
+                        <div class="skeleton-loader" style="height: 100px;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Column 2: Historical Chart and Historical Lookup -->
+            <section class="grid-col grid-right">
+                <!-- Trend Chart Card -->
+                <div class="glass-card chart-card">
+                    <div class="card-header">
+                        <div class="chart-header-row">
+                            <div>
+                                <h2>汇率趋势走势</h2>
+                                <span class="card-subtitle" id="chart-subtitle">USD / CNY 历史汇率走势图</span>
+                            </div>
+                            <div class="chart-timeframe-selector">
+                                <button class="time-btn" data-days="7">7天</button>
+                                <button class="time-btn active" data-days="30">30天</button>
+                                <button class="time-btn" data-days="90">90天</button>
+                                <button class="time-btn" data-days="365">1年</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container-wrapper">
+                        <div class="chart-loading-overlay" id="chart-loading">
+                            <div class="spinner"></div>
+                            <span>正在加载历史数据...</span>
+                        </div>
+                        <canvas id="rate-trend-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Historical Lookup Card -->
+                <div class="glass-card lookup-card">
+                    <div class="card-header">
+                        <h2>历史汇率回溯</h2>
+                        <span class="card-subtitle">查询过去任意一天的汇率数据</span>
+                    </div>
+
+                    <div class="lookup-form">
+                        <div class="lookup-inputs">
+                            <div class="form-group date-group">
+                                <label for="historical-date">选择日期</label>
+                                <div class="input-wrapper">
+                                    <i data-lucide="calendar" class="input-icon-left"></i>
+                                    <input type="date" id="historical-date">
+                                </div>
+                            </div>
+                            <button type="button" class="primary-btn" id="query-historical-btn">
+                                <i data-lucide="search"></i> 查询汇率
+                            </button>
+                        </div>
+
+                        <div class="lookup-result-box hidden" id="lookup-result">
+                            <div class="lookup-date-title" id="lookup-result-date">2026-05-20</div>
+                            <div class="lookup-rate-row">
+                                <div class="lookup-currency">
+                                    <span class="lookup-amount" id="lookup-from-val">100.00</span>
+                                    <span class="lookup-code">USD</span>
+                                </div>
+                                <i data-lucide="arrow-right" class="arrow-icon"></i>
+                                <div class="lookup-currency">
+                                    <span class="lookup-amount highlight" id="lookup-to-val">724.50</span>
+                                    <span class="lookup-code" id="lookup-to-code-label">CNY</span>
+                                </div>
+                            </div>
+                            <div class="lookup-meta" id="lookup-result-meta">基于欧洲央行官方公布数据</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>© 2026 GlobalRate. 所有数据来自欧洲央行公开 API 与公用备用接口，汇率仅供参考。</p>
+            <div class="footer-links">
+                <a href="https://www.frankfurter.app/" target="_blank" rel="noopener">Frankfurter API</a>
+                <span class="separator">•</span>
+                <a href="https://api.exchangerate.fun/" target="_blank" rel="noopener">exchangerate.fun</a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Currency Selection Modal Overlay -->
+    <div class="modal-overlay hidden" id="currency-modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3 id="modal-title">选择货币</h3>
+                <button class="modal-close-btn" id="close-modal-btn" title="关闭">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            
+            <div class="modal-search-wrapper">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" id="currency-search-input" placeholder="输入货币代码、英文名或中文名称搜索..." autocomplete="off">
+                <button class="search-clear-btn hidden" id="clear-search-btn">
+                    <i data-lucide="x-circle"></i>
+                </button>
+            </div>
+
+            <!-- Currency List -->
+            <div class="currency-list-container" id="modal-currency-list">
+                <!-- Dynamically generated list items -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Script loading -->
+    <script src="app.js"></script>
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
