@@ -1192,7 +1192,7 @@ body {
 @media (max-width: 768px) {
     /* Setup container padding and leave room for floating bottom capsule nav */
     .app-container {
-        padding: 12px 12px 100px 12px;
+        padding: calc(12px + env(safe-area-inset-top)) 12px 100px 12px;
     }
     
     .app-header {
@@ -1512,6 +1512,7 @@ body {
         left: 0;
         right: 0;
         animation: bottomSheetSlideUp 0.35s cubic-bezier(0.32, 0.94, 0.6, 1) forwards;
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
     }
     
     .modal-overlay.hidden .modal-content {
