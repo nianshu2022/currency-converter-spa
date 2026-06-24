@@ -1067,6 +1067,30 @@ document.addEventListener("DOMContentLoaded", async () => {
                 state.chartInstance.options.scales.x.ticks.maxTicksLimit = window.innerWidth < 480 ? 6 : 12;
                 state.chartInstance.update();
             }
-        }, 150);
     });
 });
+
+// Disable double-tap zoom and multi-finger pinch-to-zoom on iOS Safari
+(function disableIosZoom() {
+    // Prevent double-tap zoom
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (event) => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+            event.preventDefault();
+        }
+        lastTouchEnd = now;
+    }, false);
+
+    // Prevent pinch-to-zoom (two or more fingers touch)
+    document.addEventListener('touchstart', (event) => {
+        if (event.touches.length > 1) {
+            event.preventDefault();
+        }
+    }, { passive: false });
+
+    // Prevent gesture zoom events (iOS Safari specific)
+    document.addEventListener('gesturestart', (event) => {
+        event.preventDefault();
+    }, { passive: false });
+})();
