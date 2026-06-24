@@ -181,8 +181,7 @@ const state = {
     chartData: [],   // Stored for CSV export
     activeSelectorTrigger: null, // "from", "to", or "pin"
     availableCurrenciesList: [], // Populated dynamically from API
-    dailyChanges: {}, // { CODE: pctChange } – yesterday vs today
-    conversionHistory: [] // Last 10 conversions
+    dailyChanges: {} // { CODE: pctChange } – yesterday vs today
 };
 
 // Config & API Endpoints
@@ -456,12 +455,6 @@ function updateConversionResults() {
     
     // Update Pinned favorites grid conversion numbers
     renderFavoritesGrid();
-
-    // Record to conversion history (only when amount > 0)
-    if (fromVal > 0) {
-        const convertedVal = calculateConversion(fromVal, state.baseCurrency, state.targetCurrency);
-        addToHistory(fromVal, state.baseCurrency, convertedVal, state.targetCurrency);
-    }
 }
 
 // Render the Favorites Grid card list
@@ -920,10 +913,6 @@ function loadStoredSettings() {
     const storedTarget = localStorage.getItem("globalrate_target_currency");
     if (storedBase) state.baseCurrency = storedBase;
     if (storedTarget) state.targetCurrency = storedTarget;
-
-    // Conversion history loading
-    const storedHistory = localStorage.getItem('globalrate_history');
-    if (storedHistory) state.conversionHistory = JSON.parse(storedHistory);
 }
 
 function saveStateToStorage() {
@@ -1119,15 +1108,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Export data as CSV
     document.getElementById("export-csv-btn").addEventListener("click", exportAsCSV);
 
-    // Clear conversion history
-    document.getElementById("clear-history-btn").addEventListener("click", () => {
-        state.conversionHistory = [];
-        localStorage.removeItem('globalrate_history');
-        renderHistoryList();
-    });
 
-    // Render initial history list
-    renderHistoryList();
 
     // Fetch daily change rates (background, non-blocking)
     fetchDailyChanges();
@@ -1202,76 +1183,7 @@ async function fetchDailyChanges() {
     }
 }
 
-/* ==========================================================================
-   Conversion History
-   ========================================================================== */
 
-function addToHistory(fromAmt, fromCode, toAmt, toCode) {
-    const entry = {
-        fromAmt,
-        fromCode,
-        toAmt,
-        toCode,
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-    };
-    // Deduplicate if same conversion within last entry
-    const last = state.conversionHistory[0];
-    if (last && last.fromCode === fromCode && last.toCode === toCode &&
-        Math.abs(last.fromAmt - fromAmt) < 0.001) return;
-
-    state.conversionHistory.unshift(entry);
-    if (state.conversionHistory.length > 10) state.conversionHistory.pop();
-    localStorage.setItem('globalrate_history', JSON.stringify(state.conversionHistory));
-    renderHistoryList();
-}
-
-function renderHistoryList() {
-    const container = document.getElementById('history-list');
-    if (!container) return;
-
-    if (state.conversionHistory.length === 0) {
-        container.innerHTML = `
-            <div class="history-empty">
-                <i data-lucide="clock"></i>
-                <p>暂无换算记录</p>
-            </div>
-        `;
-        lucide.createIcons();
-        return;
-    }
-
-    container.innerHTML = state.conversionHistory.map((h, i) => `
-        <div class="history-item" data-index="${i}">
-            <div class="history-item-left">
-                <div class="history-flags">
-                    <img src="${getFlagUrl(h.fromCode)}" alt="${h.fromCode}">
-                    <img src="${getFlagUrl(h.toCode)}" alt="${h.toCode}">
-                </div>
-                <div class="history-text">
-                    <div class="history-from">${formatCurrencyNumber(h.fromAmt, h.fromCode)} ${h.fromCode}</div>
-                    <div class="history-to">${formatCurrencyNumber(h.toAmt, h.toCode)} ${h.toCode}</div>
-                </div>
-            </div>
-            <span class="history-time">${h.time}</span>
-        </div>
-    `).join('');
-
-    // Click to restore
-    container.querySelectorAll('.history-item').forEach(el => {
-        el.addEventListener('click', () => {
-            const h = state.conversionHistory[parseInt(el.dataset.index)];
-            state.baseCurrency = h.fromCode;
-            state.targetCurrency = h.toCode;
-            document.getElementById('amount-input').value = h.fromAmt;
-            state.amount = h.fromAmt;
-            saveStateToStorage();
-            updateConversionResults();
-            updateTrendChart();
-        });
-    });
-
-    lucide.createIcons();
-}
 
 /* ==========================================================================
    Export Functions
