@@ -699,57 +699,84 @@ body {
 .fav-flag-code {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 }
 
 .fav-flag {
-    width: 20px;
-    height: 14px;
-    border-radius: 2px;
+    width: 24px;
+    height: 17px;
+    border-radius: 3px;
     object-fit: cover;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.fav-code {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-primary);
+.fav-code-container {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     line-height: 1.25;
 }
 
+.fav-code {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
 .fav-name-secondary {
     font-size: 11px;
     font-weight: 500;
     color: var(--text-secondary);
-    margin-left: 0;
-    margin-top: 2px;
+    margin-top: 1px;
+}
+
+.fav-meta {
+    display: flex;
+    align-items: center;
+    transition: var(--transition-smooth);
+    opacity: 1;
+}
+
+.fav-card:hover .fav-meta {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .fav-unpin-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    color: #ef4444;
     cursor: pointer;
-    padding: 2px;
-    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
     opacity: 0;
     transition: var(--transition-smooth);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: scale(0.9);
 }
 
 .fav-card:hover .fav-unpin-btn {
     opacity: 1;
+    transform: scale(1);
 }
 
 .fav-unpin-btn:hover {
-    color: var(--accent-danger);
-    background: rgba(239, 68, 68, 0.05);
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 
 .fav-unpin-btn i {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
 }
 
 .fav-value {
@@ -1794,10 +1821,9 @@ body {
     gap: 2px;
     font-size: 10px;
     font-weight: 600;
-    padding: 2px 6px;
+    padding: 3px 8px;
     border-radius: 20px;
-    margin-top: 4px;
-    line-height: 1.4;
+    line-height: 1.2;
 }
 
 .fav-change-badge.up   { background: rgba(16, 185, 129, 0.12); color: #10b981; }
