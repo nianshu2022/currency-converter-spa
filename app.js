@@ -888,6 +888,34 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
     
+    // Mobile Tab Bar Switch Event Registration
+    document.querySelectorAll(".nav-tab").forEach(tabBtn => {
+        tabBtn.addEventListener("click", (e) => {
+            const button = e.target.closest(".nav-tab");
+            if (!button) return;
+            const tabName = button.getAttribute("data-tab");
+            
+            // Toggle active classes on tabs
+            document.querySelectorAll(".nav-tab").forEach(btn => btn.classList.remove("active"));
+            button.classList.add("active");
+            
+            // Set body attribute to change visibility in CSS
+            document.body.setAttribute("data-active-tab", tabName);
+            
+            // Trigger Chart resizing / redraw when tab switches to chart
+            if (tabName === "chart") {
+                setTimeout(() => {
+                    if (state.chartInstance) {
+                        state.chartInstance.resize();
+                        state.chartInstance.update();
+                    } else {
+                        updateTrendChart();
+                    }
+                }, 80);
+            }
+        });
+    });
+
     // Handle responsive viewport size alterations for chart scaling
     let resizeTimer;
     window.addEventListener("resize", () => {

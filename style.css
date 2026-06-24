@@ -1228,6 +1228,10 @@ body {
 /* ==========================================================================
    Responsive Media Queries (Mobile & Tablet)
    ========================================================================== */
+.mobile-nav-bar {
+    display: none; /* Hidden on desktop */
+}
+
 @media (max-width: 1024px) {
     .app-grid {
         grid-template-columns: 1fr;
@@ -1236,61 +1240,113 @@ body {
 }
 
 @media (max-width: 768px) {
+    /* Setup container padding and leave room for sticky bottom nav */
     .app-container {
-        padding: 16px 14px;
+        padding: 12px 12px 85px 12px;
     }
     
     .app-header {
-        margin-bottom: 20px;
-        padding-bottom: 16px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
     }
     
     .brand h1 {
-        font-size: 22px;
+        font-size: 20px;
     }
     
     .logo-icon {
-        width: 36px;
-        height: 36px;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
     }
     
     .logo-icon i {
-        width: 18px;
-        height: 18px;
+        width: 16px;
+        height: 16px;
     }
     
-    .header-controls {
-        gap: 10px;
+    /* Mobile-first Tabbed System: Hide inactive cards on mobile view */
+    .converter-card,
+    .favorites-card,
+    .chart-card,
+    .lookup-card {
+        display: none !important;
     }
     
-    .api-status {
-        padding: 6px 10px;
+    body[data-active-tab="converter"] .converter-card,
+    body[data-active-tab="converter"] .favorites-card {
+        display: flex !important;
+        flex-direction: column;
     }
     
-    .status-text {
-        display: none; /* Hide status text on small devices, indicator dot is enough */
+    body[data-active-tab="chart"] .chart-card {
+        display: flex !important;
+        flex-direction: column;
     }
     
+    body[data-active-tab="lookup"] .lookup-card {
+        display: flex !important;
+        flex-direction: column;
+    }
+    
+    /* Interactive Card Padding Adjustments */
     .glass-card {
-        padding: 20px;
-        border-radius: 16px;
+        padding: 18px;
+        border-radius: 18px;
+    }
+    
+    /* Larger Text & Content Values on mobile */
+    .input-wrapper input {
+        font-size: 22px;
+        padding: 14px 18px;
+    }
+    
+    .amount-group .input-wrapper input {
+        padding-left: 45px;
+        padding-right: 45px;
+    }
+    
+    .custom-select-trigger {
+        padding: 14px 16px;
+    }
+    
+    .currency-code {
+        font-size: 17px;
+    }
+    
+    .currency-flag {
+        width: 32px;
+        height: 22px;
     }
     
     .to-display-value {
-        font-size: 28px;
+        font-size: 34px;
+        font-weight: 800;
     }
     
+    .to-display-code {
+        font-size: 22px;
+    }
+    
+    .result-bottom {
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+    
+    /* Layout controls */
     .currency-selector-row {
         grid-template-columns: 1fr;
-        gap: 12px;
+        gap: 10px;
     }
     
     .swap-action-wrapper {
         height: auto;
-        margin: 4px 0;
+        margin: 2px 0;
     }
     
     .swap-btn {
+        width: 46px;
+        height: 46px;
         transform: rotate(90deg); /* Swap arrow points up/down on mobile */
     }
     
@@ -1302,6 +1358,23 @@ body {
         transform: scale(0.9) rotate(270deg);
     }
     
+    .favorites-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .fav-card {
+        padding: 14px;
+    }
+    
+    .fav-value {
+        font-size: 22px;
+    }
+    
+    .chart-container-wrapper {
+        height: 280px; /* Taller chart area on mobile for readability */
+    }
+    
     .lookup-inputs {
         grid-template-columns: 1fr;
         gap: 12px;
@@ -1311,20 +1384,128 @@ body {
         width: 100%;
         height: 48px;
     }
-}
-
-@media (max-width: 480px) {
-    .favorites-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
     
-    .modal-content {
-        max-height: 90vh;
-        border-radius: var(--card-radius) var(--card-radius) 0 0;
+    /* Mobile Fixed Tab Bar */
+    .mobile-nav-bar {
+        display: flex;
         position: fixed;
         bottom: 0;
         left: 0;
         right: 0;
+        height: 64px;
+        background: var(--bg-glass);
+        backdrop-filter: blur(25px);
+        -webkit-backdrop-filter: blur(25px);
+        border-top: 1px solid var(--border-glass);
+        justify-content: space-around;
+        align-items: center;
+        z-index: 90;
+        padding-bottom: env(safe-area-inset-bottom);
+        box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.05);
+    }
+    
+    .nav-tab {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 8px 10px;
+        cursor: pointer;
+        flex-grow: 1;
+        transition: var(--transition-smooth);
+        height: 100%;
+        outline: none;
+    }
+    
+    .nav-tab i {
+        width: 20px;
+        height: 20px;
+        transition: transform 0.2s ease;
+    }
+    
+    .nav-tab span {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+    }
+    
+    .nav-tab:active {
+        background: rgba(99, 102, 241, 0.05);
+    }
+    
+    .nav-tab.active {
+        color: var(--accent-primary);
+    }
+    
+    .nav-tab.active i {
+        transform: translateY(-2px) scale(1.1);
+    }
+    
+    /* Custom Currency Selection Modal: Native Bottom Sheet style on mobile */
+    .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+    
+    .modal-content {
+        max-height: 80vh;
+        border-radius: 24px 24px 0 0;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        animation: bottomSheetSlideUp 0.35s cubic-bezier(0.32, 0.94, 0.6, 1) forwards;
+    }
+    
+    .modal-overlay.hidden .modal-content {
+        animation: bottomSheetSlideDown 0.3s cubic-bezier(0.32, 0.94, 0.6, 1) forwards;
+    }
+    
+    @keyframes bottomSheetSlideUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+    
+    @keyframes bottomSheetSlideDown {
+        from { transform: translateY(0); }
+        to { transform: translateY(100%); }
+    }
+    
+    .currency-item {
+        padding: 14px 18px; /* Taller tap target for finger taps */
+    }
+    
+    .currency-item-flag {
+        width: 36px;
+        height: 24px;
+    }
+    
+    .currency-item-code {
+        font-size: 15px;
+    }
+    
+    .currency-item-name {
+        font-size: 12px;
+    }
+    
+    .modal-search-wrapper {
+        padding: 12px 18px;
+    }
+    
+    .modal-search-wrapper input {
+        padding: 12px 14px 12px 38px;
+    }
+    
+    .modal-search-wrapper .search-icon {
+        left: 32px;
+    }
+    
+    .search-clear-btn {
+        right: 28px;
     }
 }
+

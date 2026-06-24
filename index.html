@@ -16,7 +16,7 @@
     <!-- Custom Style -->
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="theme-system">
+<body class="theme-system" data-active-tab="converter">
     <div class="app-background">
         <div class="glow-orb orb-1"></div>
         <div class="glow-orb orb-2"></div>
@@ -225,6 +225,22 @@
                 <a href="https://api.exchangerate.fun/" target="_blank" rel="noopener">exchangerate.fun</a>
             </div>
         </footer>
+    </div>
+
+    <!-- Mobile Navigation Tab Bar -->
+    <div class="mobile-nav-bar">
+        <button class="nav-tab active" data-tab="converter" id="tab-btn-converter">
+            <i data-lucide="arrow-left-right"></i>
+            <span>汇率换算</span>
+        </button>
+        <button class="nav-tab" data-tab="chart" id="tab-btn-chart">
+            <i data-lucide="trending-up"></i>
+            <span>趋势图表</span>
+        </button>
+        <button class="nav-tab" data-tab="lookup" id="tab-btn-lookup">
+            <i data-lucide="calendar"></i>
+            <span>历史查询</span>
+        </button>
     </div>
 
     <!-- Currency Selection Modal Overlay -->
