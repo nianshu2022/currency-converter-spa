@@ -5,10 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>GlobalRate - 实时汇率货币转换器</title>
     <meta name="description" content="GlobalRate 是一款实时、精准的汇率货币转换工具。支持全球 150+ 种货币的实时兑换，提供历史汇率走势图表、自选汇率面板及历史汇率回溯功能。适配手机与电脑端。">
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
     <!-- iOS Web App Metadata (Safari Add to Home Screen Optimized) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="GlobalRate">
+    <link rel="apple-touch-icon" href="icon-512.png">
+    <meta name="theme-color" content="#6366f1">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,6 +44,15 @@
                 <div class="api-status" id="api-status" title="数据更新状态">
                     <span class="status-indicator live"></span>
                     <span class="status-text">正在连接实时数据...</span>
+                </div>
+                
+                <!-- Accent Color Picker -->
+                <div class="accent-picker" id="accent-picker" title="切换主题色">
+                    <button class="accent-dot accent-indigo active" data-accent="indigo" title="靛蓝"></button>
+                    <button class="accent-dot accent-purple" data-accent="purple" title="紫色"></button>
+                    <button class="accent-dot accent-blue" data-accent="blue" title="蓝色"></button>
+                    <button class="accent-dot accent-emerald" data-accent="emerald" title="翡翠绿"></button>
+                    <button class="accent-dot accent-rose" data-accent="rose" title="玫红"></button>
                 </div>
                 
                 <div class="theme-switch-container">
@@ -141,12 +154,34 @@
                                 <i data-lucide="plus"></i> 添加货币
                             </button>
                         </div>
-                        <span class="card-subtitle">常用货币快速兑换看板</span>
+                        <span class="card-subtitle">常用货币快速兑换看板 · 拖拽可调整顺序</span>
                     </div>
 
                     <div class="favorites-grid" id="favorites-container">
-                        <!-- Dynamic favorite rate cards will go here -->
-                        <div class="skeleton-loader" style="height: 100px;"></div>
+                        <!-- Skeleton loaders shown before data loads -->
+                        <div class="fav-card-skeleton"></div>
+                        <div class="fav-card-skeleton"></div>
+                        <div class="fav-card-skeleton"></div>
+                        <div class="fav-card-skeleton"></div>
+                    </div>
+                </div>
+
+                <!-- Conversion History Card -->
+                <div class="glass-card history-card" id="history-section">
+                    <div class="card-header">
+                        <div class="header-title-row">
+                            <h2>换算记录</h2>
+                            <button class="icon-btn" id="clear-history-btn" title="清除记录">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
+                        <span class="card-subtitle">最近 10 条换算历史</span>
+                    </div>
+                    <div class="history-list" id="history-list">
+                        <div class="history-empty">
+                            <i data-lucide="clock"></i>
+                            <p>暂无换算记录</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -161,11 +196,21 @@
                                 <h2>汇率趋势走势</h2>
                                 <span class="card-subtitle" id="chart-subtitle">USD / CNY 历史汇率走势图</span>
                             </div>
-                            <div class="chart-timeframe-selector">
-                                <button class="time-btn" data-days="7">7天</button>
-                                <button class="time-btn active" data-days="30">30天</button>
-                                <button class="time-btn" data-days="90">90天</button>
-                                <button class="time-btn" data-days="365">1年</button>
+                            <div class="chart-header-right">
+                                <div class="chart-timeframe-selector">
+                                    <button class="time-btn" data-days="7">7天</button>
+                                    <button class="time-btn active" data-days="30">30天</button>
+                                    <button class="time-btn" data-days="90">90天</button>
+                                    <button class="time-btn" data-days="365">1年</button>
+                                </div>
+                                <div class="chart-export-btns">
+                                    <button class="icon-btn" id="export-chart-png-btn" title="导出图表为图片">
+                                        <i data-lucide="image"></i>
+                                    </button>
+                                    <button class="icon-btn" id="export-csv-btn" title="导出汇率数据 CSV">
+                                        <i data-lucide="download"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -279,5 +324,6 @@
         // Initialize Lucide Icons
         lucide.createIcons();
     </script>
+
 </body>
 </html>

@@ -174,10 +174,15 @@ const state = {
     lastUpdated: null,
     pinnedCurrencies: ["CNY", "EUR", "GBP", "JPY", "HKD", "CAD"],
     theme: "system", // system, dark, light
+    accentColor: "indigo", // indigo, purple, blue, emerald, rose
     chartInstance: null,
     chartDays: 30,
+    chartLabels: [], // Stored for CSV export
+    chartData: [],   // Stored for CSV export
     activeSelectorTrigger: null, // "from", "to", or "pin"
-    availableCurrenciesList: [] // Populated dynamically from API
+    availableCurrenciesList: [], // Populated dynamically from API
+    dailyChanges: {}, // { CODE: pctChange } – yesterday vs today
+    conversionHistory: [] // Last 10 conversions
 };
 
 // Config & API Endpoints
@@ -451,6 +456,12 @@ function updateConversionResults() {
     
     // Update Pinned favorites grid conversion numbers
     renderFavoritesGrid();
+
+    // Record to conversion history (only when amount > 0)
+    if (fromVal > 0) {
+        const convertedVal = calculateConversion(fromVal, state.baseCurrency, state.targetCurrency);
+        addToHistory(fromVal, state.baseCurrency, convertedVal, state.targetCurrency);
+    }
 }
 
 // Render the Favorites Grid card list
@@ -474,10 +485,21 @@ function renderFavoritesGrid() {
         
         const value = calculateConversion(state.amount, state.baseCurrency, code);
         const rate = getExchangeRate(state.baseCurrency, code);
+
+        // Build change badge HTML
+        const pct = state.dailyChanges[code];
+        let changeBadge = '';
+        if (pct !== undefined) {
+            const sign = pct > 0 ? '+' : '';
+            const cls = pct > 0.01 ? 'up' : pct < -0.01 ? 'down' : 'flat';
+            const arrow = pct > 0.01 ? '▲' : pct < -0.01 ? '▼' : '—';
+            changeBadge = `<span class="fav-change-badge ${cls}">${arrow} ${sign}${pct.toFixed(2)}%</span>`;
+        }
         
         const card = document.createElement("div");
         card.className = "fav-card";
         card.setAttribute("data-code", code);
+        card.setAttribute("draggable", "true");
         
         card.innerHTML = `
             <div class="fav-card-header">
@@ -486,6 +508,7 @@ function renderFavoritesGrid() {
                     <span class="fav-code">
                         ${code}
                         <span class="fav-name-secondary">${CURRENCY_METADATA[code] ? CURRENCY_METADATA[code].name : ''}</span>
+                        ${changeBadge}
                     </span>
                 </div>
                 <button class="fav-unpin-btn" data-code="${code}" title="取消置顶">
@@ -516,6 +539,8 @@ function renderFavoritesGrid() {
     });
     
     lucide.createIcons();
+    // Re-attach drag listeners after DOM update
+    initFavDragDrop();
 }
 
 // Add/Pin currency to favorites
@@ -697,7 +722,10 @@ async function updateTrendChart() {
 
 function renderChartCanvas(labels, dataPoints) {
     const ctx = document.getElementById("rate-trend-chart").getContext('2d');
-    
+    // Store labels and data for export
+    state.chartLabels = labels;
+    state.chartData = dataPoints;
+
     // Clear old chart
     if (state.chartInstance) {
         state.chartInstance.destroy();
@@ -877,6 +905,10 @@ function loadStoredSettings() {
         setTheme("system");
     }
     
+    // Accent color loading
+    const storedAccent = localStorage.getItem('globalrate_accent');
+    if (storedAccent) setAccentColor(storedAccent);
+    
     // Favorites loading
     const storedFavorites = localStorage.getItem("globalrate_pinned");
     if (storedFavorites) {
@@ -888,6 +920,10 @@ function loadStoredSettings() {
     const storedTarget = localStorage.getItem("globalrate_target_currency");
     if (storedBase) state.baseCurrency = storedBase;
     if (storedTarget) state.targetCurrency = storedTarget;
+
+    // Conversion history loading
+    const storedHistory = localStorage.getItem('globalrate_history');
+    if (storedHistory) state.conversionHistory = JSON.parse(storedHistory);
 }
 
 function saveStateToStorage() {
@@ -1069,6 +1105,35 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }, 150);
     });
+
+    // ── New Feature Event Listeners ─────────────────────────────────────────
+
+    // Accent color picker
+    document.querySelectorAll(".accent-dot").forEach(dot => {
+        dot.addEventListener("click", () => setAccentColor(dot.dataset.accent));
+    });
+
+    // Export chart as PNG
+    document.getElementById("export-chart-png-btn").addEventListener("click", exportChartAsPNG);
+
+    // Export data as CSV
+    document.getElementById("export-csv-btn").addEventListener("click", exportAsCSV);
+
+    // Clear conversion history
+    document.getElementById("clear-history-btn").addEventListener("click", () => {
+        state.conversionHistory = [];
+        localStorage.removeItem('globalrate_history');
+        renderHistoryList();
+    });
+
+    // Render initial history list
+    renderHistoryList();
+
+    // Fetch daily change rates (background, non-blocking)
+    fetchDailyChanges();
+
+    // Init drag-and-drop after first favorites render
+    initFavDragDrop();
 });
 
 // Disable double-tap zoom and multi-finger pinch-to-zoom on iOS Safari
@@ -1095,3 +1160,233 @@ document.addEventListener("DOMContentLoaded", async () => {
         event.preventDefault();
     }, { passive: false });
 })();
+
+/* ==========================================================================
+   Daily Change Rate Fetcher (Yesterday vs Today Rates)
+   ========================================================================== */
+
+async function fetchDailyChanges() {
+    try {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yd = yesterday.toISOString().split('T')[0];
+        const today = new Date().toISOString().split('T')[0];
+
+        // Fetch 2-day time series for all pinned currencies
+        const symbols = state.pinnedCurrencies.join(',');
+        if (!symbols) return;
+
+        const url = `${CONFIG.PRIMARY_API}/${yd}..${today}?base=USD&symbols=${symbols}`;
+        const resp = await fetch(url);
+        if (!resp.ok) return;
+        const data = await resp.json();
+
+        const dates = Object.keys(data.rates).sort();
+        if (dates.length < 2) return;
+
+        const prevRates = data.rates[dates[dates.length - 2]] || {};
+        const latestRates = data.rates[dates[dates.length - 1]] || {};
+
+        state.dailyChanges = {};
+        state.pinnedCurrencies.forEach(code => {
+            const prev = prevRates[code];
+            const curr = latestRates[code] || state.rates[code];
+            if (prev && curr) {
+                state.dailyChanges[code] = ((curr - prev) / prev) * 100;
+            }
+        });
+        // Re-render with change badges
+        renderFavoritesGrid();
+    } catch (err) {
+        console.warn('[dailyChanges] Could not fetch change data:', err);
+    }
+}
+
+/* ==========================================================================
+   Conversion History
+   ========================================================================== */
+
+function addToHistory(fromAmt, fromCode, toAmt, toCode) {
+    const entry = {
+        fromAmt,
+        fromCode,
+        toAmt,
+        toCode,
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    };
+    // Deduplicate if same conversion within last entry
+    const last = state.conversionHistory[0];
+    if (last && last.fromCode === fromCode && last.toCode === toCode &&
+        Math.abs(last.fromAmt - fromAmt) < 0.001) return;
+
+    state.conversionHistory.unshift(entry);
+    if (state.conversionHistory.length > 10) state.conversionHistory.pop();
+    localStorage.setItem('globalrate_history', JSON.stringify(state.conversionHistory));
+    renderHistoryList();
+}
+
+function renderHistoryList() {
+    const container = document.getElementById('history-list');
+    if (!container) return;
+
+    if (state.conversionHistory.length === 0) {
+        container.innerHTML = `
+            <div class="history-empty">
+                <i data-lucide="clock"></i>
+                <p>暂无换算记录</p>
+            </div>
+        `;
+        lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = state.conversionHistory.map((h, i) => `
+        <div class="history-item" data-index="${i}">
+            <div class="history-item-left">
+                <div class="history-flags">
+                    <img src="${getFlagUrl(h.fromCode)}" alt="${h.fromCode}">
+                    <img src="${getFlagUrl(h.toCode)}" alt="${h.toCode}">
+                </div>
+                <div class="history-text">
+                    <div class="history-from">${formatCurrencyNumber(h.fromAmt, h.fromCode)} ${h.fromCode}</div>
+                    <div class="history-to">${formatCurrencyNumber(h.toAmt, h.toCode)} ${h.toCode}</div>
+                </div>
+            </div>
+            <span class="history-time">${h.time}</span>
+        </div>
+    `).join('');
+
+    // Click to restore
+    container.querySelectorAll('.history-item').forEach(el => {
+        el.addEventListener('click', () => {
+            const h = state.conversionHistory[parseInt(el.dataset.index)];
+            state.baseCurrency = h.fromCode;
+            state.targetCurrency = h.toCode;
+            document.getElementById('amount-input').value = h.fromAmt;
+            state.amount = h.fromAmt;
+            saveStateToStorage();
+            updateConversionResults();
+            updateTrendChart();
+        });
+    });
+
+    lucide.createIcons();
+}
+
+/* ==========================================================================
+   Export Functions
+   ========================================================================== */
+
+function exportChartAsPNG() {
+    if (!state.chartInstance) return;
+    const canvas = document.getElementById('rate-trend-chart');
+    const link = document.createElement('a');
+    link.download = `GlobalRate_${state.baseCurrency}-${state.targetCurrency}_${state.chartDays}d.png`;
+    link.href = canvas.toDataURL('image/png', 1.0);
+    link.click();
+}
+
+function exportAsCSV() {
+    if (!state.chartLabels.length) return;
+    const rows = [['Date', `${state.baseCurrency}/${state.targetCurrency} Rate`]];
+    state.chartLabels.forEach((date, i) => {
+        rows.push([date, state.chartData[i]]);
+    });
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `GlobalRate_${state.baseCurrency}-${state.targetCurrency}_${state.chartDays}d.csv`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+/* ==========================================================================
+   Accent Color Management
+   ========================================================================== */
+
+function setAccentColor(color) {
+    // Remove all existing accent classes
+    document.body.classList.remove('accent-indigo', 'accent-purple', 'accent-blue', 'accent-emerald', 'accent-rose');
+    if (color !== 'indigo') {
+        document.body.classList.add(`accent-${color}`);
+    }
+    state.accentColor = color;
+    localStorage.setItem('globalrate_accent', color);
+
+    // Update dot active state
+    document.querySelectorAll('.accent-dot').forEach(dot => {
+        dot.classList.toggle('active', dot.dataset.accent === color);
+    });
+
+    // Redraw chart for updated accent colors
+    if (state.chartInstance) updateTrendChart();
+}
+
+/* ==========================================================================
+   Favorites Drag-and-Drop Sorting
+   ========================================================================== */
+
+function initFavDragDrop() {
+    const container = document.getElementById('favorites-container');
+    let dragSrc = null;
+
+    container.addEventListener('dragstart', e => {
+        const card = e.target.closest('.fav-card');
+        if (!card) return;
+        dragSrc = card;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', card.dataset.code);
+    });
+
+    container.addEventListener('dragend', e => {
+        const card = e.target.closest('.fav-card');
+        if (card) card.classList.remove('dragging');
+        container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    });
+
+    container.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const card = e.target.closest('.fav-card');
+        container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        if (card && card !== dragSrc) card.classList.add('drag-over');
+    });
+
+    container.addEventListener('drop', e => {
+        e.preventDefault();
+        const targetCard = e.target.closest('.fav-card');
+        if (!targetCard || targetCard === dragSrc || !dragSrc) return;
+
+        const fromCode = dragSrc.dataset.code;
+        const toCode = targetCard.dataset.code;
+
+        const fromIdx = state.pinnedCurrencies.indexOf(fromCode);
+        const toIdx = state.pinnedCurrencies.indexOf(toCode);
+
+        if (fromIdx === -1 || toIdx === -1) return;
+
+        // Swap positions
+        [state.pinnedCurrencies[fromIdx], state.pinnedCurrencies[toIdx]] =
+            [state.pinnedCurrencies[toIdx], state.pinnedCurrencies[fromIdx]];
+
+        localStorage.setItem('globalrate_pinned', JSON.stringify(state.pinnedCurrencies));
+        renderFavoritesGrid();
+        // Re-init drag after re-render
+        initFavDragDrop();
+    });
+}
+
+/* ==========================================================================
+   Service Worker Registration
+   ========================================================================== */
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('[SW] Registered, scope:', reg.scope))
+            .catch(err => console.warn('[SW] Registration failed:', err));
+    });
+}

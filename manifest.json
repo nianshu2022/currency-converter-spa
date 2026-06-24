@@ -1,0 +1,26 @@
+{
+  "name": "GlobalRate - 实时汇率货币转换器",
+  "short_name": "GlobalRate",
+  "description": "实时精准的汇率货币转换工具，支持 150+ 种货币，提供趋势图表与历史回溯。",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b0f19",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "utilities"],
+  "lang": "zh-CN"
+}
