@@ -483,7 +483,10 @@ function renderFavoritesGrid() {
             <div class="fav-card-header">
                 <div class="fav-flag-code">
                     <img src="${getFlagUrl(code)}" alt="${code} Flag" class="fav-flag">
-                    <span class="fav-code">${code}</span>
+                    <span class="fav-code">
+                        ${code}
+                        <span class="fav-name-secondary">${CURRENCY_METADATA[code] ? CURRENCY_METADATA[code].name : ''}</span>
+                    </span>
                 </div>
                 <button class="fav-unpin-btn" data-code="${code}" title="取消置顶">
                     <i data-lucide="trash-2"></i>

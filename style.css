@@ -675,6 +675,15 @@ body {
     font-size: 13px;
     font-weight: 700;
     color: var(--text-primary);
+    display: flex;
+    align-items: baseline;
+}
+
+.fav-name-secondary {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-left: 5px;
 }
 
 .fav-unpin-btn {
