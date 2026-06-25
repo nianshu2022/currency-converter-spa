@@ -39,6 +39,22 @@
                 </div>
                 <h1>Global<span>Rate</span></h1>
             </div>
+
+            <!-- Desktop Navigation Menu -->
+            <nav class="desktop-nav">
+                <button class="desktop-nav-btn active" data-tab="converter" title="汇率换算">
+                    <i data-lucide="arrow-left-right"></i>
+                    <span>汇率换算</span>
+                </button>
+                <button class="desktop-nav-btn" data-tab="favorites" title="常用看板">
+                    <i data-lucide="star"></i>
+                    <span>常用看板</span>
+                </button>
+                <button class="desktop-nav-btn" data-tab="chart" title="趋势图表">
+                    <i data-lucide="trending-up"></i>
+                    <span>趋势图表</span>
+                </button>
+            </nav>
             
             <div class="header-controls">
                 <div class="api-status" id="api-status" title="数据更新状态">
@@ -69,11 +85,8 @@
             </div>
         </header>
 
-        <!-- Main Layout Grid -->
-        <main class="app-grid">
-            
-            <!-- Column 1: Converter and Favorites -->
-            <section class="grid-col grid-left">
+        <!-- Main Content Area -->
+        <main class="app-main-content">
                 <!-- Converter Card -->
                 <div class="glass-card converter-card" id="converter-section">
                     <div class="card-header">
@@ -165,10 +178,7 @@
                         <div class="fav-card-skeleton"></div>
                     </div>
                 </div>
-            </section>
 
-            <!-- Column 2: Historical Chart -->
-            <section class="grid-col grid-right">
                 <!-- Trend Chart Card -->
                 <div class="glass-card chart-card">
                     <div class="card-header">
@@ -204,7 +214,6 @@
                         <canvas id="rate-trend-chart"></canvas>
                     </div>
                 </div>
-            </section>
         </main>
 
         <!-- Footer -->
@@ -224,6 +233,10 @@
         <button class="nav-tab active" data-tab="converter" id="tab-btn-converter">
             <i data-lucide="arrow-left-right"></i>
             <span>汇率换算</span>
+        </button>
+        <button class="nav-tab" data-tab="favorites" id="tab-btn-favorites">
+            <i data-lucide="star"></i>
+            <span>常用看板</span>
         </button>
         <button class="nav-tab" data-tab="chart" id="tab-btn-chart">
             <i data-lucide="trending-up"></i>

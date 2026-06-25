@@ -316,19 +316,87 @@ body {
     box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
 }
 
-/* App Grid Layout */
-.app-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 30px;
-    align-items: start;
-    flex-grow: 1;
-}
-
-.grid-col {
+/* App Content Layout */
+.app-main-content {
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    flex-grow: 1;
+    margin-top: 10px;
+}
+
+/* Desktop Navigation Menu */
+.desktop-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    border-radius: 20px;
+    padding: 4px;
+    box-shadow: var(--shadow-sm);
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.desktop-nav-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: var(--transition-smooth);
+}
+
+.desktop-nav-btn:hover {
+    color: var(--text-primary);
+    background: rgba(var(--accent-primary-rgb), 0.05);
+}
+
+.desktop-nav-btn.active {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(var(--accent-primary-rgb), 0.2);
+}
+
+.desktop-nav-btn i {
+    width: 14px;
+    height: 14px;
+}
+
+/* Tabbed Layout: Hide inactive cards by default */
+.converter-card,
+.favorites-card,
+.chart-card {
+    display: none !important;
+}
+
+/* Active Tab Styles */
+body[data-active-tab="converter"] .converter-card {
+    display: flex !important;
+    flex-direction: column;
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+    animation: fadeInUp 0.4s ease forwards;
+}
+
+body[data-active-tab="favorites"] .favorites-card {
+    display: flex !important;
+    flex-direction: column;
+    width: 100%;
+    animation: fadeInUp 0.4s ease forwards;
+}
+
+body[data-active-tab="chart"] .chart-card {
+    display: flex !important;
+    flex-direction: column;
+    width: 100%;
+    animation: fadeInUp 0.4s ease forwards;
 }
 
 /* Glassmorphism Cards */
@@ -1182,14 +1250,12 @@ body {
     display: none; /* Hidden on desktop */
 }
 
-@media (max-width: 1024px) {
-    .app-grid {
-        grid-template-columns: 1fr;
-        gap: 24px;
-    }
-}
+
 
 @media (max-width: 768px) {
+    .desktop-nav {
+        display: none !important;
+    }
     /* Setup container padding and leave room for floating bottom capsule nav */
     .app-container {
         padding: calc(12px + env(safe-area-inset-top)) 12px 100px 12px;
@@ -1256,8 +1322,13 @@ body {
         display: none !important;
     }
     
-    body[data-active-tab="converter"] .converter-card,
-    body[data-active-tab="converter"] .favorites-card {
+    body[data-active-tab="converter"] .converter-card {
+        display: flex !important;
+        flex-direction: column;
+        animation: tabContentSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    
+    body[data-active-tab="favorites"] .favorites-card {
         display: flex !important;
         flex-direction: column;
         animation: tabContentSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -1432,7 +1503,7 @@ body {
         top: 5px;
         bottom: 5px;
         left: 6px;
-        width: calc((100% - 12px) / 2);
+        width: calc((100% - 12px) / 3);
         background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
         border-radius: 25px;
         z-index: 1;

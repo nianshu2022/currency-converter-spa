@@ -980,42 +980,61 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
     
-    // Mobile Tab Bar Switch Event Registration
-    document.querySelectorAll(".nav-tab").forEach(tabBtn => {
-        tabBtn.addEventListener("click", (e) => {
-            const button = e.target.closest(".nav-tab");
-            if (!button) return;
-            const tabName = button.getAttribute("data-tab");
-            
-            // Get index of clicked tab button to calculate sliding offset
-            const parent = button.parentNode;
-            const tabsArray = Array.from(parent.querySelectorAll(".nav-tab"));
-            const index = tabsArray.indexOf(button);
-            
-            // Toggle active classes on tabs
-            tabsArray.forEach(btn => btn.classList.remove("active"));
-            button.classList.add("active");
-            
-            // Update sliding pill indicator position
-            const indicator = document.getElementById("nav-tab-indicator");
-            if (indicator) {
+    // Unified Tab Switching Logic
+    function switchTab(tabName) {
+        // Set body attribute to change visibility in CSS
+        document.body.setAttribute("data-active-tab", tabName);
+        
+        // Sync Desktop Navigation Buttons
+        document.querySelectorAll(".desktop-nav-btn").forEach(btn => {
+            if (btn.getAttribute("data-tab") === tabName) {
+                btn.classList.add("active");
+            } else {
+                btn.classList.remove("active");
+            }
+        });
+        
+        // Sync Mobile Navigation Tabs
+        const mobileTabs = document.querySelectorAll(".nav-tab");
+        mobileTabs.forEach(btn => {
+            if (btn.getAttribute("data-tab") === tabName) {
+                btn.classList.add("active");
+            } else {
+                btn.classList.remove("active");
+            }
+        });
+        
+        // Update sliding pill indicator position on mobile
+        const indicator = document.getElementById("nav-tab-indicator");
+        if (indicator) {
+            const tabsArray = Array.from(mobileTabs);
+            const activeBtn = tabsArray.find(btn => btn.getAttribute("data-tab") === tabName);
+            if (activeBtn) {
+                const index = tabsArray.indexOf(activeBtn);
                 indicator.style.transform = `translateX(${index * 100}%)`;
             }
-            
-            // Set body attribute to change visibility in CSS
-            document.body.setAttribute("data-active-tab", tabName);
-            
-            // Trigger Chart resizing / redraw when tab switches to chart
-            if (tabName === "chart") {
-                setTimeout(() => {
-                    if (state.chartInstance) {
-                        state.chartInstance.resize();
-                        state.chartInstance.update();
-                    } else {
-                        updateTrendChart();
-                    }
-                }, 80);
-            }
+        }
+        
+        // Trigger Chart resizing / redraw when tab switches to chart
+        if (tabName === "chart") {
+            setTimeout(() => {
+                if (state.chartInstance) {
+                    state.chartInstance.resize();
+                    state.chartInstance.update();
+                } else {
+                    updateTrendChart();
+                }
+            }, 80);
+        }
+    }
+
+    // Register click event listeners for both Desktop and Mobile Navigation Buttons
+    document.querySelectorAll(".nav-tab, .desktop-nav-btn").forEach(tabBtn => {
+        tabBtn.addEventListener("click", (e) => {
+            const button = e.target.closest(".nav-tab, .desktop-nav-btn");
+            if (!button) return;
+            const tabName = button.getAttribute("data-tab");
+            switchTab(tabName);
         });
     });
 
