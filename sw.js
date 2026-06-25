@@ -2,7 +2,7 @@
    GlobalRate Service Worker - Offline Cache & PWA Support
    ========================================================================== */
 
-const CACHE_NAME = 'globalrate-v1';
+const CACHE_NAME = 'globalrate-v2';
 
 // Static app shell assets to cache on install
 const APP_SHELL = [
@@ -42,6 +42,25 @@ self.addEventListener('activate', event => {
   );
 });
 
+// Helper to handle response redirects (workaround for iOS Safari "Response served by service worker has redirections" error)
+function handleResponse(request, response) {
+  if (response.redirected) {
+    return fetch(response.url).then(cleanResponse => {
+      if (cleanResponse.ok) {
+        const clone = cleanResponse.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+      }
+      return cleanResponse;
+    });
+  }
+  
+  if (response.ok) {
+    const clone = response.clone();
+    caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+  }
+  return response;
+}
+
 // Fetch: Cache-first for app shell, network-first for API calls
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
@@ -53,14 +72,7 @@ self.addEventListener('fetch', event => {
   if (url.hostname.includes('frankfurter') || url.hostname.includes('exchangerate')) {
     event.respondWith(
       fetch(event.request)
-        .then(response => {
-          // Cache successful API responses briefly
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          }
-          return response;
-        })
+        .then(response => handleResponse(event.request, response))
         .catch(() => {
           // Fallback to cache if offline
           return caches.match(event.request);
@@ -73,13 +85,7 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
-      return fetch(event.request).then(response => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        }
-        return response;
-      });
+      return fetch(event.request).then(response => handleResponse(event.request, response));
     })
   );
 });
