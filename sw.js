@@ -2,7 +2,7 @@
    GlobalRate Service Worker - Offline Cache & PWA Support
    ========================================================================== */
 
-const CACHE_NAME = 'globalrate-v3';
+const CACHE_NAME = 'globalrate-v4';
 
 // Static app shell assets to cache on install
 const APP_SHELL = [

@@ -113,6 +113,8 @@ body.accent-rose {
     padding: 0;
     box-sizing: border-box;
     font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -123,6 +125,13 @@ body {
     flex-direction: column;
     overflow-x: hidden;
     transition: background-color 0.5s ease, color 0.3s ease;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+input {
+    -webkit-user-select: auto;
+    user-select: auto;
 }
 
 /* App Background Orbs */
@@ -545,6 +554,54 @@ body[data-active-tab="chart"] .chart-card {
     color: var(--text-primary);
 }
 
+/* Quick Amount Chips */
+.quick-amount-chips {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: -6px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    padding: 2px 2px 6px 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.quick-amount-chips::-webkit-scrollbar {
+    display: none;
+}
+
+.amount-chip {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-glass);
+    color: var(--text-secondary);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: var(--transition-smooth);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    flex-shrink: 0;
+}
+
+.amount-chip:hover {
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+    background: rgba(var(--accent-primary-rgb), 0.06);
+}
+
+.amount-chip:active {
+    transform: scale(0.95);
+}
+
+.amount-chip.chip-add {
+    color: var(--accent-primary);
+    background: rgba(var(--accent-primary-rgb), 0.08);
+    border-color: rgba(var(--accent-primary-rgb), 0.2);
+}
+
 /* Currency Selector Row */
 .currency-selector-row {
     display: grid;
@@ -706,6 +763,45 @@ body[data-active-tab="chart"] .chart-card {
     align-items: center;
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reorder-fav-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-glass);
+    color: var(--text-secondary);
+    padding: 7px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: var(--transition-smooth);
+}
+
+.reorder-fav-btn:hover {
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+    background: rgba(var(--accent-primary-rgb), 0.05);
+}
+
+.reorder-fav-btn.active {
+    background: var(--accent-primary);
+    color: #ffffff;
+    border-color: var(--accent-primary);
+    box-shadow: 0 4px 12px rgba(var(--accent-primary-rgb), 0.3);
+}
+
+.reorder-fav-btn i {
+    width: 14px;
+    height: 14px;
+}
+
 .add-favorite-btn {
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
     border: none;
@@ -835,6 +931,66 @@ body[data-active-tab="chart"] .chart-card {
 .fav-unpin-btn i {
     width: 12px;
     height: 12px;
+}
+
+/* Reorder Mode Styles */
+.fav-card.reorder-mode {
+    border: 1px dashed var(--accent-primary) !important;
+    box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.15), var(--card-shadow);
+    cursor: grab;
+}
+
+.fav-card.reorder-mode:active {
+    cursor: grabbing;
+}
+
+.fav-card.reorder-mode .fav-unpin-btn {
+    opacity: 1;
+    transform: scale(1);
+    position: static;
+}
+
+.fav-reorder-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 2;
+}
+
+.fav-move-btn {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-glass);
+    color: var(--text-primary);
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    padding: 0;
+}
+
+.fav-move-btn:hover {
+    background: var(--accent-primary);
+    color: #ffffff;
+    border-color: var(--accent-primary);
+}
+
+.fav-move-btn:active {
+    transform: scale(0.9);
+}
+
+.fav-move-btn:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.fav-move-btn i {
+    width: 13px;
+    height: 13px;
 }
 
 .fav-value {
@@ -1038,11 +1194,38 @@ body[data-active-tab="chart"] .chart-card {
     to { opacity: 0; transform: translateY(40px); }
 }
 
+/* iOS Sheet Pull Handle */
+.sheet-drag-handle-zone {
+    display: none; /* Hidden on desktop, shown on mobile */
+    width: 100%;
+    padding: 12px 0 4px 0;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+}
+
+.sheet-drag-handle-zone:active {
+    cursor: grabbing;
+}
+
+.sheet-handle {
+    width: 40px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--text-muted);
+    opacity: 0.45;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.sheet-drag-handle-zone:hover .sheet-handle {
+    opacity: 0.8;
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 24px;
+    padding: 18px 24px;
     border-bottom: 1px solid var(--border-glass);
 }
 
@@ -1073,6 +1256,79 @@ body[data-active-tab="chart"] .chart-card {
 .modal-close-btn i {
     width: 18px;
     height: 18px;
+}
+
+/* Modal Popular Currencies Strip */
+.modal-popular-strip {
+    padding: 12px 24px 8px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-bottom: 1px solid var(--border-glass);
+    background: rgba(var(--accent-primary-rgb), 0.02);
+}
+
+.popular-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.popular-chips-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.popular-chips-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.pop-chip {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-glass);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: var(--transition-smooth);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.pop-chip img {
+    width: 18px;
+    height: 13px;
+    border-radius: 2px;
+    object-fit: cover;
+}
+
+.pop-chip:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    transform: translateY(-1px);
+}
+
+.pop-chip:active {
+    transform: scale(0.95);
+}
+
+.pop-chip.active {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: #ffffff;
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(var(--accent-primary-rgb), 0.35);
 }
 
 .modal-search-wrapper {
@@ -1631,6 +1887,31 @@ body[data-active-tab="chart"] .chart-card {
     
     .search-clear-btn {
         right: 28px;
+    }
+
+    /* iOS Mobile Sheet Handle display */
+    .sheet-drag-handle-zone {
+        display: flex;
+    }
+
+    .modal-popular-strip {
+        padding: 8px 16px 6px 16px;
+    }
+
+    /* iOS Virtual Keyboard Open: Hide floating bottom bar */
+    body.keyboard-open .mobile-nav-bar {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transform: translateY(120px) !important;
+        transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Native iOS touch tap feedback */
+    button:active, 
+    .custom-select-trigger:active, 
+    .amount-chip:active, 
+    .fav-card:active {
+        transform: scale(0.96);
     }
 }
 

@@ -106,11 +106,21 @@
                             <label for="amount-input">兑换金额</label>
                             <div class="input-wrapper">
                                 <span class="currency-symbol-prefix" id="amount-prefix">$</span>
-                                <input type="number" id="amount-input" value="100" placeholder="请输入金额" min="0" step="any" autocomplete="off">
+                                <input type="number" id="amount-input" value="100" placeholder="请输入金额" min="0" step="any" inputmode="decimal" autocomplete="off">
                                 <button class="clear-btn" id="clear-amount-btn" title="清除金额">
                                     <i data-lucide="x"></i>
                                 </button>
                             </div>
+                        </div>
+
+                        <!-- Quick Amount Chips for Mobile -->
+                        <div class="quick-amount-chips" id="quick-amount-chips">
+                            <button type="button" class="amount-chip" data-val="100">100</button>
+                            <button type="button" class="amount-chip" data-val="500">500</button>
+                            <button type="button" class="amount-chip" data-val="1000">1,000</button>
+                            <button type="button" class="amount-chip" data-val="5000">5,000</button>
+                            <button type="button" class="amount-chip chip-add" data-add="100">+100</button>
+                            <button type="button" class="amount-chip chip-add" data-add="500">+500</button>
                         </div>
 
                         <!-- Currency Selector Row -->
@@ -169,11 +179,16 @@
                     <div class="card-header">
                         <div class="header-title-row">
                             <h2>常用汇率看板</h2>
-                            <button class="add-favorite-btn" id="manage-favorites-btn" title="管理看板">
-                                <i data-lucide="plus"></i> 添加货币
-                            </button>
+                            <div class="header-actions">
+                                <button class="reorder-fav-btn" id="toggle-reorder-btn" title="排序/编辑">
+                                    <i data-lucide="arrow-up-down"></i> <span id="reorder-btn-text">排序</span>
+                                </button>
+                                <button class="add-favorite-btn" id="manage-favorites-btn" title="管理看板">
+                                    <i data-lucide="plus"></i> 添加货币
+                                </button>
+                            </div>
                         </div>
-                        <span class="card-subtitle">常用货币快速兑换看板 · 拖拽可调整顺序</span>
+                        <span class="card-subtitle">常用货币快速兑换看板 · 点击直达换算 · 支持排序</span>
                     </div>
 
                     <div class="favorites-grid" id="favorites-container">
@@ -253,6 +268,11 @@
     <!-- Currency Selection Modal Overlay -->
     <div class="modal-overlay hidden" id="currency-modal">
         <div class="modal-content glass-card">
+            <!-- iOS Sheet Pull Handle Indicator -->
+            <div class="sheet-drag-handle-zone" id="sheet-drag-handle">
+                <div class="sheet-handle"></div>
+            </div>
+
             <div class="modal-header">
                 <h3 id="modal-title">选择货币</h3>
                 <button class="modal-close-btn" id="close-modal-btn" title="关闭">
@@ -260,9 +280,24 @@
                 </button>
             </div>
             
+            <!-- Quick Popular Currencies Strip -->
+            <div class="modal-popular-strip">
+                <span class="popular-title">常用热门</span>
+                <div class="popular-chips-scroll" id="popular-chips-container">
+                    <button type="button" class="pop-chip" data-code="CNY"><img src="https://flagcdn.com/w40/cn.png" alt="CN"> CNY 人民币</button>
+                    <button type="button" class="pop-chip" data-code="USD"><img src="https://flagcdn.com/w40/us.png" alt="US"> USD 美元</button>
+                    <button type="button" class="pop-chip" data-code="EUR"><img src="https://flagcdn.com/w40/eu.png" alt="EU"> EUR 欧元</button>
+                    <button type="button" class="pop-chip" data-code="JPY"><img src="https://flagcdn.com/w40/jp.png" alt="JP"> JPY 日元</button>
+                    <button type="button" class="pop-chip" data-code="HKD"><img src="https://flagcdn.com/w40/hk.png" alt="HK"> HKD 港币</button>
+                    <button type="button" class="pop-chip" data-code="GBP"><img src="https://flagcdn.com/w40/gb.png" alt="GB"> GBP 英镑</button>
+                    <button type="button" class="pop-chip" data-code="SGD"><img src="https://flagcdn.com/w40/sg.png" alt="SG"> SGD 新币</button>
+                    <button type="button" class="pop-chip" data-code="AUD"><img src="https://flagcdn.com/w40/au.png" alt="AU"> AUD 澳元</button>
+                </div>
+            </div>
+
             <div class="modal-search-wrapper">
                 <i data-lucide="search" class="search-icon"></i>
-                <input type="text" id="currency-search-input" placeholder="输入货币代码、英文名或中文名称搜索..." autocomplete="off">
+                <input type="text" id="currency-search-input" placeholder="输入代码、英文名或中文名称搜索..." autocomplete="off">
                 <button class="search-clear-btn hidden" id="clear-search-btn">
                     <i data-lucide="x-circle"></i>
                 </button>

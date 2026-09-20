@@ -181,7 +181,8 @@ const state = {
     chartData: [],   // Stored for CSV export
     activeSelectorTrigger: null, // "from", "to", or "pin"
     availableCurrenciesList: [], // Populated dynamically from API
-    dailyChanges: {} // { CODE: pctChange } – yesterday vs today
+    dailyChanges: {}, // { CODE: pctChange } – yesterday vs today
+    reorderMode: false // Mobile reorder / sorting mode
 };
 
 // Config & API Endpoints
@@ -455,10 +456,10 @@ function renderFavoritesGrid() {
         return;
     }
     
-    state.pinnedCurrencies.forEach(code => {
-        // Skip display if same as base
-        if (code === state.baseCurrency) return;
-        
+    const isReordering = state.reorderMode;
+    const activeList = state.pinnedCurrencies.filter(c => c !== state.baseCurrency);
+
+    activeList.forEach((code, idx) => {
         const value = calculateConversion(state.amount, state.baseCurrency, code);
         const rate = getExchangeRate(state.baseCurrency, code);
 
@@ -473,10 +474,33 @@ function renderFavoritesGrid() {
         }
         
         const card = document.createElement("div");
-        card.className = "fav-card";
+        card.className = `fav-card ${isReordering ? 'reorder-mode' : ''}`;
         card.setAttribute("data-code", code);
-        card.setAttribute("draggable", "true");
+        card.setAttribute("draggable", isReordering ? "true" : "false");
         
+        let headerActions = '';
+        if (isReordering) {
+            headerActions = `
+                <div class="fav-reorder-actions">
+                    <button class="fav-move-btn" data-code="${code}" data-dir="-1" title="向前移动" ${idx === 0 ? 'disabled' : ''}>
+                        <i data-lucide="chevron-left"></i>
+                    </button>
+                    <button class="fav-move-btn" data-code="${code}" data-dir="1" title="向后移动" ${idx === activeList.length - 1 ? 'disabled' : ''}>
+                        <i data-lucide="chevron-right"></i>
+                    </button>
+                    <button class="fav-unpin-btn" data-code="${code}" title="移除">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
+            `;
+        } else {
+            headerActions = `
+                <button class="fav-unpin-btn" data-code="${code}" title="取消置顶">
+                    <i data-lucide="trash-2"></i>
+                </button>
+            `;
+        }
+
         card.innerHTML = `
             <div class="fav-card-header">
                 <div class="fav-flag-code">
@@ -486,9 +510,7 @@ function renderFavoritesGrid() {
                         <span class="fav-name-secondary">${CURRENCY_METADATA[code] ? CURRENCY_METADATA[code].name : ''}</span>
                     </div>
                 </div>
-                <button class="fav-unpin-btn" data-code="${code}" title="取消置顶">
-                    <i data-lucide="trash-2"></i>
-                </button>
+                ${headerActions}
             </div>
             <div class="fav-value">${formatCurrencyNumber(value, code)}</div>
             <div class="fav-footer">
@@ -497,10 +519,10 @@ function renderFavoritesGrid() {
             </div>
         `;
         
-        // Card click handler -> set as target currency
+        // Card click handler -> set as target currency (disabled during reordering)
         card.addEventListener("click", (e) => {
-            // If they clicked the delete icon, don't trigger currency swap
-            if (e.target.closest(".fav-unpin-btn")) return;
+            if (isReordering) return;
+            if (e.target.closest(".fav-unpin-btn") || e.target.closest(".fav-move-btn")) return;
             
             state.targetCurrency = code;
             updateConversionResults();
@@ -508,9 +530,22 @@ function renderFavoritesGrid() {
         });
         
         // Unpin button click handler
-        card.querySelector(".fav-unpin-btn").addEventListener("click", (e) => {
-            e.stopPropagation();
-            unpinCurrency(code);
+        const unpinBtn = card.querySelector(".fav-unpin-btn");
+        if (unpinBtn) {
+            unpinBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                unpinCurrency(code);
+            });
+        }
+
+        // Move buttons click handlers
+        card.querySelectorAll(".fav-move-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const moveCode = btn.getAttribute("data-code");
+                const dir = parseInt(btn.getAttribute("data-dir"), 10);
+                movePinnedCurrency(moveCode, dir);
+            });
         });
         
         container.appendChild(card);
@@ -519,6 +554,19 @@ function renderFavoritesGrid() {
     lucide.createIcons();
     // Re-attach drag listeners after DOM update
     initFavDragDrop();
+}
+
+// Move pinned currency position
+function movePinnedCurrency(code, dir) {
+    const idx = state.pinnedCurrencies.indexOf(code);
+    if (idx === -1) return;
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= state.pinnedCurrencies.length) return;
+    
+    const [item] = state.pinnedCurrencies.splice(idx, 1);
+    state.pinnedCurrencies.splice(newIdx, 0, item);
+    localStorage.setItem("globalrate_pinned", JSON.stringify(state.pinnedCurrencies));
+    renderFavoritesGrid();
 }
 
 // Add/Pin currency to favorites
@@ -559,13 +607,21 @@ function openCurrencyModal(triggerType) {
     searchInput.value = "";
     document.getElementById("clear-search-btn").classList.add("hidden");
     
+    // Highlight currently active popular chip
+    const currentActiveCode = triggerType === "from" ? state.baseCurrency : (triggerType === "to" ? state.targetCurrency : null);
+    document.querySelectorAll(".pop-chip").forEach(chip => {
+        chip.classList.toggle("active", chip.getAttribute("data-code") === currentActiveCode);
+    });
+
     renderModalCurrencyList();
     
     modal.classList.remove("hidden");
-    // Animation tick
-    setTimeout(() => {
-        searchInput.focus();
-    }, 100);
+    // Only auto-focus on desktop viewports to prevent iOS virtual keyboard jumping
+    if (window.innerWidth > 768) {
+        setTimeout(() => {
+            searchInput.focus();
+        }, 100);
+    }
 }
 
 function closeCurrencyModal() {
@@ -746,6 +802,10 @@ function renderChartCanvas(labels, dataPoints) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: {
                     display: false // We already have a clean subtitle title
@@ -1064,7 +1124,132 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Export data as CSV
     document.getElementById("export-csv-btn").addEventListener("click", exportAsCSV);
 
+    // Quick Amount Chips
+    document.querySelectorAll(".amount-chip").forEach(chip => {
+        chip.addEventListener("click", () => {
+            const val = chip.getAttribute("data-val");
+            const add = chip.getAttribute("data-add");
+            const amountInput = document.getElementById("amount-input");
+            if (val !== null) {
+                amountInput.value = val;
+            } else if (add !== null) {
+                const current = parseFloat(amountInput.value) || 0;
+                amountInput.value = (current + parseFloat(add)).toString();
+            }
+            updateConversionResults();
+        });
+    });
 
+    // Favorites Reorder Toggle Button
+    const toggleReorderBtn = document.getElementById("toggle-reorder-btn");
+    if (toggleReorderBtn) {
+        toggleReorderBtn.addEventListener("click", () => {
+            state.reorderMode = !state.reorderMode;
+            const textSpan = document.getElementById("reorder-btn-text");
+            if (state.reorderMode) {
+                textSpan.textContent = "完成";
+                toggleReorderBtn.classList.add("active");
+            } else {
+                textSpan.textContent = "排序";
+                toggleReorderBtn.classList.remove("active");
+            }
+            renderFavoritesGrid();
+        });
+    }
+
+    // Modal Popular Currency Chips
+    document.querySelectorAll(".pop-chip").forEach(chip => {
+        chip.addEventListener("click", () => {
+            const code = chip.getAttribute("data-code");
+            if (code) {
+                selectCurrencyFromModal(code);
+            }
+        });
+    });
+
+    // iOS Bottom Sheet Pull-Down to Close
+    const dragHandleZone = document.getElementById("sheet-drag-handle");
+    const modalContent = document.querySelector(".modal-content");
+    if (dragHandleZone && modalContent) {
+        let pullStartY = 0;
+        let isPulling = false;
+        dragHandleZone.addEventListener("touchstart", (e) => {
+            pullStartY = e.touches[0].clientY;
+            isPulling = true;
+        }, { passive: true });
+
+        dragHandleZone.addEventListener("touchmove", (e) => {
+            if (!isPulling) return;
+            const diff = e.touches[0].clientY - pullStartY;
+            if (diff > 0) {
+                modalContent.style.transform = `translateY(${diff}px)`;
+            }
+        }, { passive: true });
+
+        dragHandleZone.addEventListener("touchend", (e) => {
+            if (!isPulling) return;
+            isPulling = false;
+            const diff = e.changedTouches[0].clientY - pullStartY;
+            modalContent.style.transform = "";
+            if (diff > 60) {
+                closeCurrencyModal();
+            }
+        }, { passive: true });
+    }
+
+    // iOS-style Horizontal Swipe Navigation between tabs
+    const TABS_ORDER = ["converter", "favorites", "chart"];
+    let swipeStartX = 0;
+    let swipeStartY = 0;
+    let swipeStartTime = 0;
+
+    document.addEventListener("touchstart", (e) => {
+        // Exclude modal, chart scrubbing, and horizontal scroll zones
+        if (e.target.closest("#currency-modal") || 
+            e.target.closest("#rate-trend-chart") || 
+            e.target.closest(".popular-chips-scroll") ||
+            e.target.closest(".quick-amount-chips")) {
+            swipeStartX = 0;
+            return;
+        }
+        const touch = e.touches[0];
+        swipeStartX = touch.clientX;
+        swipeStartY = touch.clientY;
+        swipeStartTime = Date.now();
+    }, { passive: true });
+
+    document.addEventListener("touchend", (e) => {
+        if (!swipeStartX) return;
+        const touch = e.changedTouches[0];
+        const deltaX = touch.clientX - swipeStartX;
+        const deltaY = touch.clientY - swipeStartY;
+        const duration = Date.now() - swipeStartTime;
+
+        swipeStartX = 0;
+
+        // Valid horizontal swipe: >55px deltaX, horizontal dominates vertical (1.5x), time < 450ms
+        if (Math.abs(deltaX) >= 55 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5 && duration < 450) {
+            const currentTab = document.body.getAttribute("data-active-tab") || "converter";
+            const currentIndex = TABS_ORDER.indexOf(currentTab);
+            if (currentIndex === -1) return;
+
+            if (deltaX < 0 && currentIndex < TABS_ORDER.length - 1) {
+                // Swipe Left -> Next Tab
+                switchTab(TABS_ORDER[currentIndex + 1]);
+            } else if (deltaX > 0 && currentIndex > 0) {
+                // Swipe Right -> Prev Tab
+                switchTab(TABS_ORDER[currentIndex - 1]);
+            }
+        }
+    }, { passive: true });
+
+    // Handle iOS Virtual Keyboard via visualViewport to prevent floating nav occlusion
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", () => {
+            const isKeyboardOpen = window.visualViewport.height < window.innerHeight * 0.78;
+            document.body.classList.toggle("keyboard-open", isKeyboardOpen);
+        });
+    }
 
     // Fetch daily change rates (background, non-blocking)
     fetchDailyChanges();
@@ -1073,30 +1258,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     initFavDragDrop();
 });
 
-// Disable double-tap zoom and multi-finger pinch-to-zoom on iOS Safari
-(function disableIosZoom() {
-    // Prevent double-tap zoom
-    let lastTouchEnd = 0;
-    document.addEventListener('touchend', (event) => {
-        const now = Date.now();
-        if (now - lastTouchEnd <= 300) {
-            event.preventDefault();
-        }
-        lastTouchEnd = now;
-    }, false);
-
-    // Prevent pinch-to-zoom (two or more fingers touch)
-    document.addEventListener('touchstart', (event) => {
-        if (event.touches.length > 1) {
-            event.preventDefault();
-        }
-    }, { passive: false });
-
-    // Prevent gesture zoom events (iOS Safari specific)
-    document.addEventListener('gesturestart', (event) => {
-        event.preventDefault();
-    }, { passive: false });
-})();
+// Prevent multi-finger gesture zoom in iOS Safari PWA standalone
+document.addEventListener('gesturestart', (event) => {
+    event.preventDefault();
+}, { passive: false });
 
 /* ==========================================================================
    Daily Change Rate Fetcher (Yesterday vs Today Rates)
